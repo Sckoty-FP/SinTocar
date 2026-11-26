@@ -8,6 +8,9 @@
 | Imagen de la cámara | CameraX | OpenCV `VideoCapture` (webcam) | Sí / Sí | Gratis |
 | Voz → texto | `SpeechRecognizer` del sistema (Google) | Vosk, modelo pequeño en español (~40 MB) | Depende del móvil / Sí, sin conexión | Gratis |
 | Texto → voz | `TextToSpeech` del sistema | Voz de Windows (System.Speech) | Sí / Sí | Gratis |
+| Gestos de la mano | MediaPipe Gesture Recognizer (`gesture_recognizer.task`), 8 gestos | Palma + 21 puntos de la mano en ONNX (OpenCV Zoo) y reglas por dedos | Sí / Sí | Gratis |
+| Cara y sonrisa | ML Kit Face Detection (probabilidad de sonrisa) | Clasificadores Haar de OpenCV (cara y sonrisa) | Sí / Sí | Gratis |
+| Realidad aumentada | ARCore + SceneView (planos del suelo y anclas) | Marcador ArUco impreso de 15 cm + `solvePnP` (OpenCV) | Sí / Sí | Gratis |
 
 Alternativas consideradas:
 - **MediaPipe Tasks en Android:** descartado. ML Kit ya da la postura con menos configuración, y es la que se usó en el Tema 6.
@@ -46,6 +49,17 @@ En el móvil, cuando no bajaba del todo en la sentadilla, no la contaba y decía
 - **Una pierna tapada no se detecta.** A 8 m, detrás de un sofá que me tapaba una pierna, el marcador seguía diciendo «Te veo bien». Pasa porque el valor que usamos de ML Kit (`inFrameLikelihood`) dice si el punto está dentro de la imagen, no si se ve. ML Kit se inventa dónde está la articulación tapada.
 - **Las zancadas son permisivas.** En el móvil contó también alguna zancada que no estaba del todo bien hecha. El umbral es bajo porque de lado la cámara ve peor la rodilla de atrás.
 - **El pitido de Android.** En algunos móviles suena un pitido cada vez que la escucha vuelve a empezar. Lo hace el sistema, no la app.
+
+### Gestos, cara y RA (Temas 7 y 8)
+| Medida | Móvil | Ordenador |
+|--------|-------|-----------|
+| Palma abierta → pausa, de 10 | __/10 | __/10 |
+| Pulgar arriba → siguiente, de 10 | __/10 | __/10 |
+| Distancia máxima a la que reconoce la mano | __ m | __ m |
+| Sonrisa → favorito, de 5 | __/5 | __/5 |
+| Falsos gestos en 1 minuto de entrenamiento | __ | __ |
+| Encuentra el suelo (tiempo aproximado) | __ s | no aplica (marcador) |
+| Distancia que da la Zona RA frente a la real (medida con metro) | __ m / __ m | __ m / __ m |
 
 ## 3. Decisión justificada
 

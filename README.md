@@ -102,6 +102,6 @@ desktopApp              Arranque de escritorio (main.kt) y descarga de modelos
 La imagen y el audio se procesan en el dispositivo. No se guardan ni se envían a ningún servidor, con una excepción: el reconocedor de voz de Google en Android puede usar su servicio en línea según la configuración del móvil.
 
 ## Autoría
-Trabajo individual: **Elias Blanco** (diseño, implementación, pruebas, documentación y vídeo).
+Trabajo individual: **Elias Jesus Blanco Tovar** (diseño, implementación, pruebas, documentación y vídeo).
 
 Parte del código sale de los ejemplos de los Temas 4, 5 y 6 de clase.

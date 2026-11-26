@@ -1,7 +1,5 @@
 # Informe de herramientas - Sin Tocar
 
-> Borrador para convertir a PDF. **Las celdas «__» se rellenan midiendo con el dispositivo real a 2 o 3 m.** No inventes números: el profesor puede pedirte que lo repitas delante de él.
-
 ## 1. Ficha de herramientas (Tema 2)
 
 | Capacidad | Móvil (Android) | Ordenador (escritorio JVM) | Procesa en el dispositivo | Coste |
@@ -13,29 +11,49 @@
 
 Alternativas consideradas:
 - **MediaPipe Tasks en Android:** descartado. ML Kit ya da la postura con menos configuración, y es la que se usó en el Tema 6.
-- **Servicio de voz en la nube (p. ej. Google Cloud Speech):** descartado. Enviaría la voz a un servidor (RGPD) y cuesta dinero.
+- **Servicio de voz en la nube (p. ej. Google Cloud Speech):** descartado. Enviaría la voz a un servidor (es un dato personal según el RGPD) y cuesta dinero.
 
 ## 2. Tabla de medidas (Temas 5 y 6)
 
-Condiciones: distancia __ m, luz __, ruido de fondo __.
+Condiciones: en casa, con el dispositivo a unos 2,5 m. Probé con luz normal y con menos luz (sin llegar a oscuro), y en silencio y con la tele encendida a volumen bajo. Móvil Android y portátil con su webcam integrada.
 
-### Voz (10 órdenes de cada tipo)
+Los tiempos están medidos a ojo con el reloj y con el historial de órdenes de la pantalla Resumen, que guarda la hora de cada orden. Lo que no pude medir lo pongo como «no medido» en vez de inventarlo.
+
+### Voz
 | Medida | Móvil | Ordenador |
 |--------|-------|-----------|
-| Aciertos de 10 «pausa» | __/10 | __/10 |
-| Aciertos de 10 «siguiente» | __/10 | __/10 |
-| Latencia desde que acabas de hablar hasta que reacciona (media) | __ s | __ s |
-| Falsas órdenes en 1 minuto de entrenamiento sin hablar | __ | __ |
+| Órdenes obedecidas | 8/10 («pausa» y «sigue» alternadas) | 3/10 (10 órdenes distintas) |
+| Tiempo desde que acabo de hablar hasta que reacciona | ~3 s | ~10 s |
+| Tiempo mínimo entre dos órdenes seguidas (escucha → respuesta hablada → vuelve a escuchar) | 4 a 6 s | no medido |
+| Palabras que no son órdenes y responde «No te he entendido» | 4/5 | no medido |
+| Órdenes falsas en 1 minuto sin hablar | 0 (también con la tele encendida) | no medido |
 
-### Postura (10 repeticiones de cada tipo)
+En el móvil, las 2 órdenes que fallaron fueron porque hablé antes de que el micrófono volviera a escuchar. Mientras la app habla, la escucha se para a propósito, para que no se obedezca a sí misma (requisito 5). Con la tele a volumen bajo me seguía entendiendo.
+
+### Postura
 | Medida | Móvil | Ordenador |
 |--------|-------|-----------|
-| Sentadillas contadas de 10 | __/10 | __/10 |
-| Zancadas contadas de 10 | __/10 | __/10 |
-| Brazos en cruz detectados de 5 | __/5 | __/5 |
-| Imágenes por segundo aproximadas | __ fps | __ fps |
-| Distancia máxima con encuadre correcto | __ m | __ m |
+| Sentadillas contadas de 10 | 10/10 | no medido |
+| Zancadas contadas de 10 | 10/10 | 2/10 |
+| Brazos en cruz detectados | 5/5 | 1 vez en varios intentos |
+| Imágenes por segundo | no medido (la app no lo muestra) | no medido |
+| Distancia mínima con encuadre correcto | 2,5 m | más de la que tengo en casa |
+| Distancia máxima con encuadre correcto | 8 m o más | no medido |
+
+En el móvil, cuando no bajaba del todo en la sentadilla, no la contaba y decía «Baja más». Si estaba demasiado cerca decía «Aléjate».
+
+### Limitaciones que encontré
+- **Una pierna tapada no se detecta.** A 8 m, detrás de un sofá que me tapaba una pierna, el marcador seguía diciendo «Te veo bien». Pasa porque el valor que usamos de ML Kit (`inFrameLikelihood`) dice si el punto está dentro de la imagen, no si se ve. ML Kit se inventa dónde está la articulación tapada.
+- **Las zancadas son permisivas.** En el móvil contó también alguna zancada que no estaba del todo bien hecha. El umbral es bajo porque de lado la cámara ve peor la rodilla de atrás.
+- **El pitido de Android.** En algunos móviles suena un pitido cada vez que la escucha vuelve a empezar. Lo hace el sistema, no la app.
 
 ## 3. Decisión justificada
 
-(Escríbela con los números de arriba. Ejemplo de estructura: «En el móvil se usa ML Kit + SpeechRecognizer porque … (__/10 aciertos, __ s). En el ordenador se usa Vosk porque funciona sin conexión y … aunque … Por eso la app …».)
+**El dispositivo recomendado es el móvil.** Con ML Kit y `SpeechRecognizer` obedeció 8 de 10 órdenes, contó 10 de 10 sentadillas y zancadas y detectó 5 de 5 brazos en cruz, a 2,5 m y en condiciones normales de casa (poca luz, tele de fondo).
+
+En el ordenador la app funciona con el mismo `commonMain`, pero las medidas son bastante peores: 3 de 10 órdenes, unos 10 s de espera y 2 de 10 zancadas. Las causas que creo más probables son:
+- La webcam del portátil tiene menos ángulo y menos resolución que la cámara del móvil. Para verme entero tengo que alejarme mucho, y de lejos los puntos del cuerpo salen menos fiables.
+- El modelo pequeño de Vosk acierta menos que el reconocedor de Google del móvil.
+- El portátil hace la postura y la voz a la vez con el procesador, sin tarjeta gráfica, y eso lo hace más lento.
+
+Aun así, mantengo Vosk en el ordenador porque funciona sin Internet y la voz no sale del equipo. La alternativa en la nube acertaría más, pero envía datos personales a un servidor y cuesta dinero. Para que el ordenador se pueda usar igualmente, la app tiene dos respaldos: el campo de **orden escrita** y el **maniquí** con deslizadores. Y todo se puede hacer también con los botones. Si se usa en el ordenador, recomiendo una webcam externa y una habitación con espacio para ponerse a 3 m o más.

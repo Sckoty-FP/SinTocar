@@ -1,0 +1,247 @@
+package es.dam.sintocar
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+
+/**
+ * Pantalla Entrenamiento: cámara con esqueleto y Marcador de encuadre, contador grande, ejercicio y objetivo,
+ * tiempo, Indicador de voz, barra de la postura de pausa, botones y ayuda.
+ * Las órdenes de los botones y de la postura van a [control] con su origen; las de voz llegan por la Sesión.
+ */
+@Composable
+fun PantallaEntrenamiento(
+    control: ControlEntrenamiento,
+    escucha: EscuchaContinua,
+    ahora: Long,
+    reloj: () -> Long,
+    modifier: Modifier = Modifier,
+) {
+    val permisoCamara = rememberPermiso(Recurso.CAMARA)
+    var usarManiqui by remember { mutableStateOf(permisoCamara.estado != EstadoPermiso.CONCEDIDO) }
+    var postura by remember { mutableStateOf<Postura?>(null) }
+    val cruz = remember { PosturaMantenida(2000) }
+    var progresoCruz by remember { mutableFloatStateOf(0f) }
+    // Un contador nuevo en cada serie, para no arrastrar una bajada a medias del ejercicio anterior.
+    val contador = remember(control.indice) { ContadorEjercicio.para(control.serieActual.ejercicio) }
+    var incompletaEn by remember { mutableLongStateOf(-10_000L) }
+
+    // Cada imagen de la cámara (o del maniquí) pasa por aquí.
+    val procesar by rememberUpdatedState { p: Postura ->
+        postura = p
+        control.actualizarEncuadre(encuadre(p) == Encuadre.CORRECTO)
+        val enCruz = brazosEnCruz(p)
+        // 1) La postura de pausa funciona aunque esté en pausa: es la que la quita.
+        if (cruz.actualizar(enCruz, reloj())) control.accionBrazosEnCruz?.let { control.ordenar(Orden(it, Origen.POSTURA)) }
+        progresoCruz = cruz.progreso
+        // 2) Solo se cuenta con datos fiables (requisito 4). Con los brazos en cruz tampoco: es una orden.
+        if (control.conteo == Conteo.CONTANDO && !enCruz) {
+            anguloRodillaMasDoblada(p)?.let { grados ->
+                when (contador.nuevoAngulo(grados)) {
+                    Movimiento.REPETICION -> control.repeticion()
+                    Movimiento.INCOMPLETA -> incompletaEn = reloj()
+                    Movimiento.NADA -> {}
+                }
+            }
+        }
+    }
+    val incompleta = ahora - incompletaEn < 1500
+    val colorEsqueleto = when {
+        control.conteo != Conteo.CONTANDO -> Colores.textoSuave
+        incompleta -> Colores.aviso
+        else -> Colores.correcto
+    }
+
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val horizontal = maxWidth > maxHeight
+        val altoCamara = maxHeight * 0.45f
+        val camara = @Composable { m: Modifier ->
+            CamaraConEsqueleto(postura, colorEsqueleto, conCamara = !usarManiqui && permisoCamara.estado == EstadoPermiso.CONCEDIDO,
+                modifier = m) { procesar(it) }
+        }
+        val panel = @Composable { m: Modifier ->
+            Panel(control, escucha, ahora, contador.abajo, incompleta, progresoCruz, usarManiqui,
+                alCambiarManiqui = { usarManiqui = it }, alManiqui = { procesar(it) }, modifier = m)
+        }
+        if (horizontal) Row(Modifier.fillMaxSize()) {
+            camara(Modifier.fillMaxHeight().aspectRatio(3f / 4f))
+            panel(Modifier.weight(1f).fillMaxHeight())
+        } else Column(Modifier.fillMaxSize()) {
+            camara(Modifier.fillMaxWidth().height(altoCamara))
+            panel(Modifier.weight(1f).fillMaxWidth())
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Panel(
+    c: ControlEntrenamiento,
+    escucha: EscuchaContinua,
+    ahora: Long,
+    abajo: Boolean,
+    incompleta: Boolean,
+    progresoCruz: Float,
+    usarManiqui: Boolean,
+    alCambiarManiqui: (Boolean) -> Unit,
+    alManiqui: (Postura) -> Unit,
+    modifier: Modifier,
+) {
+    var confirmarTerminar by remember { mutableStateOf(false) }
+    fun toque(a: Accion) { c.ordenar(Orden(a, Origen.TOQUE)) }
+
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Ejercicio, serie y tiempo.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(c.serieActual.ejercicio.nombre, fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = Colores.texto)
+            Text("⏱ ${formatoTiempo(c.tiempoMs())}", fontSize = Tamanos.titulo, color = Colores.texto)
+        }
+        Text("Serie ${c.indice + 1} de ${c.rutina.series.size} · objetivo ${c.serieActual.objetivo}",
+            fontSize = Tamanos.apoyo, color = Colores.textoSuave)
+
+        // Contador grande: se lee a 3 metros.
+        Text("${c.repeticionesActuales} / ${c.serieActual.objetivo}",
+            fontSize = Tamanos.contador, fontWeight = FontWeight.Black, color = Colores.texto)
+
+        // Por qué cuenta o no cuenta (requisito 4): una sola instrucción, la más importante.
+        val (mensaje, color) = when (c.conteo) {
+            Conteo.SIN_EMPEZAR -> "Preparado" to Colores.textoSuave
+            Conteo.EN_PAUSA -> "⏸ En pausa · no cuento" to Colores.aviso
+            Conteo.SIN_ENCUADRE -> "No cuento: colócate para que te vea entero" to Colores.error
+            Conteo.ANUNCIANDO -> c.ultimoAnuncio.orEmpty() to Colores.correcto
+            Conteo.TERMINADO -> "" to Colores.texto
+            Conteo.CONTANDO -> when {
+                incompleta -> "Baja más" to Colores.aviso
+                abajo -> "⬆ Bien, ahora sube" to Colores.correcto
+                else -> "⬇ Baja" to Colores.correcto
+            }
+        }
+        Text(mensaje, fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = color)
+
+        // Ayuda siempre visible, según el momento (descubribilidad).
+        Text(pistaCorta(c.fase), fontSize = Tamanos.apoyo, color = Colores.texto)
+
+        IndicadorVoz(escucha.indicador(ahora), escucha.ultimaFrase, escucha.ultimaAccion, escucha.error,
+            escucha.hablando, pista = pistaVoz(c.fase))
+
+        // Barra de la postura de pausa: cuánto falta de los 2 segundos con los brazos en cruz.
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Brazos en cruz 2 s → ${if (c.accionBrazosEnCruz == Accion.PAUSA) "pausa" else "empezar / seguir"}",
+                fontSize = Tamanos.apoyo, color = Colores.textoSuave)
+            LinearProgressIndicator(progress = { progresoCruz }, modifier = Modifier.fillMaxWidth().height(12.dp),
+                color = Colores.aviso)
+        }
+
+        // Alternativa táctil de cada orden.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (c.fase == Fase.PREPARADO || c.fase == Fase.PAUSA)
+                BotonGrande(if (c.fase == Fase.PREPARADO) "▶ Empezar" else "▶ Seguir", color = Colores.correcto) { toque(Accion.EMPEZAR) }
+            else BotonGrande("⏸ Pausa", color = Colores.aviso) { toque(Accion.PAUSA) }
+            BotonGrande("⏭ Siguiente") { toque(Accion.SIGUIENTE) }
+            BotonGrande("■ Terminar", color = Colores.error) { confirmarTerminar = true }
+            BotonGrande("? Ayuda", color = Colores.textoSuave) { toque(Accion.AYUDA) }
+        }
+
+        if (c.ayudaVisible) AyudaOrdenes()
+
+        if (esEscritorio) OrdenEscrita(escucha) { c.ordenar(Orden(it, Origen.VOZ)) }
+        SelectorDispositivos()
+
+        // Respaldo sin cámara (Tema 6): no sustituye a la cámara real en el vídeo.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Switch(checked = usarManiqui, onCheckedChange = alCambiarManiqui)
+            Text("Sin cámara: usar el maniquí", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
+        }
+        if (usarManiqui) Maniqui(alManiqui)
+    }
+
+    // «Terminar» no se puede deshacer: con el botón se confirma (tolerancia al error).
+    if (confirmarTerminar) AlertDialog(
+        onDismissRequest = { confirmarTerminar = false },
+        title = { Text("¿Terminar el entrenamiento?", fontSize = Tamanos.apoyo) },
+        text = { Text("Irás al resumen y no podrás seguir con esta rutina.", fontSize = Tamanos.apoyo) },
+        confirmButton = { TextButton(onClick = { confirmarTerminar = false; toque(Accion.TERMINAR) }) { Text("Sí, terminar", fontSize = Tamanos.apoyo) } },
+        dismissButton = { TextButton(onClick = { confirmarTerminar = false }) { Text("No, seguir", fontSize = Tamanos.apoyo) } },
+    )
+}
+
+/** La pista de cada momento, en pantalla. */
+private fun pistaCorta(f: Fase) = when (f) {
+    Fase.PREPARADO -> "Di «empezar» o cruza los brazos 2 s"
+    Fase.EN_MARCHA -> "Di «pausa» o cruza los brazos 2 s · «siguiente» · «ayuda»"
+    Fase.PAUSA -> "Di «sigue» o cruza los brazos 2 s"
+    Fase.OBJETIVO_CUMPLIDO -> "Paso al siguiente en 3 s · di «pausa» para esperar"
+    Fase.TERMINADO -> ""
+}
+
+/** La orden que se sugiere cuando no se entiende lo que ha dicho. */
+fun pistaVoz(f: Fase) = when (f) {
+    Fase.PREPARADO, Fase.PAUSA -> "«empezar»"
+    Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> "«pausa»"
+    Fase.TERMINADO -> "«favorito»"
+}
+
+/** El mapa de órdenes completo (requisito 2), visible con «ayuda». */
+@Composable
+fun AyudaOrdenes() {
+    Column(
+        Modifier.fillMaxWidth().background(Colores.superficie, RoundedCornerShape(16.dp)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("Qué puedes hacer", fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold, color = Colores.texto)
+        listOf(
+            "Empezar / seguir" to "«empezar», «sigue» · brazos en cruz 2 s · botón",
+            "Pausa" to "«pausa», «para» · brazos en cruz 2 s · botón",
+            "Siguiente ejercicio" to "«siguiente» · botón",
+            "Terminar" to "«terminar» · botón (con confirmación)",
+            "Ayuda" to "«ayuda» · botón",
+            "Favorito (en el resumen)" to "«favorito» · botón",
+        ).forEach { (accion, como) ->
+            Text("$accion: $como", fontSize = Tamanos.apoyo, color = Colores.texto)
+        }
+    }
+}
+
+/** Respaldo de escritorio sin micrófono: la frase escrita sigue el mismo camino que la hablada. */
+@Composable
+fun OrdenEscrita(escucha: EscuchaContinua, alOrden: (Accion) -> Unit) {
+    var texto by remember { mutableStateOf("") }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(texto, { texto = it }, label = { Text("Orden escrita") }, singleLine = true, modifier = Modifier.weight(1f))
+        BotonGrande("Enviar") { escucha.recibir(texto, alOrden); texto = "" }
+    }
+}

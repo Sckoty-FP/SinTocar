@@ -1,0 +1,170 @@
+package es.dam.sintocar
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
+enum class Ejercicio(val nombre: String) { SENTADILLAS("Sentadillas"), ZANCADAS("Zancadas") }
+
+data class Serie(val ejercicio: Ejercicio, val objetivo: Int)
+
+enum class Rutina(val nombre: String, val series: List<Serie>) {
+    SUAVE("Suave", listOf(Serie(Ejercicio.SENTADILLAS, 8), Serie(Ejercicio.ZANCADAS, 8), Serie(Ejercicio.SENTADILLAS, 8))),
+    INTENSA("Intensa", listOf(Serie(Ejercicio.SENTADILLAS, 15), Serie(Ejercicio.ZANCADAS, 16), Serie(Ejercicio.SENTADILLAS, 20))),
+}
+
+/** En qué momento del entrenamiento estamos. */
+enum class Fase { PREPARADO, EN_MARCHA, PAUSA, OBJETIVO_CUMPLIDO, TERMINADO }
+
+/** Qué pasó con una orden. */
+enum class Resultado { APLICADA, REPETIDA, NO_DISPONIBLE }
+
+/** Si ahora mismo se cuenta, y si no, por qué (la pantalla lo dice). Requisito 4. */
+enum class Conteo { CONTANDO, SIN_EMPEZAR, EN_PAUSA, SIN_ENCUADRE, ANUNCIANDO, TERMINADO }
+
+data class OrdenRegistrada(val orden: Orden, val ms: Long, val resultado: Resultado)
+
+/**
+ * El cerebro de la app. TODAS las órdenes (voz, postura, toque) entran por [ordenar].
+ * No sabe nada de cámaras, micrófonos ni pantallas: por eso se puede testear con un reloj falso.
+ *
+ * @param reloj hora actual en ms. En la app, el reloj del sistema; en los tests, uno que avanza a mano.
+ * @param anunciar se llama con cada frase que hay que decir en voz alta (y enseñar en pantalla).
+ */
+class ControlEntrenamiento(
+    val rutina: Rutina,
+    private val reloj: () -> Long,
+    private val anunciar: (String) -> Unit = {},
+) {
+    var fase by mutableStateOf(Fase.PREPARADO); private set
+    var indice by mutableStateOf(0); private set
+    private val repeticiones = mutableStateListOf(*Array(rutina.series.size) { 0 })
+    var encuadreOk by mutableStateOf(false); private set
+    var ayudaVisible by mutableStateOf(false); private set
+    var favorito by mutableStateOf(false); private set
+    /** La última frase anunciada, para enseñarla en pantalla además de decirla. */
+    var ultimoAnuncio by mutableStateOf<String?>(null); private set
+
+    /** Todas las órdenes recibidas, aplicadas o no. */
+    val historial = mutableStateListOf<OrdenRegistrada>()
+
+    private val ultimaVez = mutableMapOf<Accion, Long>()
+    private var avanzarEn: Long? = null
+    private var tiempoAcumulado = 0L
+    private var enMarchaDesde: Long? = null
+
+    val serieActual: Serie get() = rutina.series[indice]
+    val repeticionesActuales: Int get() = repeticiones[indice]
+
+    val conteo: Conteo
+        get() = when (fase) {
+            Fase.PREPARADO -> Conteo.SIN_EMPEZAR
+            Fase.PAUSA -> Conteo.EN_PAUSA
+            Fase.OBJETIVO_CUMPLIDO -> Conteo.ANUNCIANDO
+            Fase.TERMINADO -> Conteo.TERMINADO
+            Fase.EN_MARCHA -> if (encuadreOk) Conteo.CONTANDO else Conteo.SIN_ENCUADRE
+        }
+
+    /** Lo que significa «brazos en cruz 2 s» ahora mismo: empezar/seguir, pausar, o nada. */
+    val accionBrazosEnCruz: Accion?
+        get() = when (fase) {
+            Fase.PREPARADO, Fase.PAUSA -> Accion.EMPEZAR
+            Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> Accion.PAUSA
+            Fase.TERMINADO -> null
+        }
+
+    /** Punto único de entrada de órdenes (requisito 1). */
+    fun ordenar(orden: Orden): Resultado {
+        val ahora = reloj()
+        val anterior = ultimaVez[orden.accion]
+        val resultado = when {
+            anterior != null && ahora - anterior < 1000 -> Resultado.REPETIDA
+            aplicar(orden.accion, ahora) -> Resultado.APLICADA
+            else -> Resultado.NO_DISPONIBLE
+        }
+        if (resultado != Resultado.REPETIDA) ultimaVez[orden.accion] = ahora
+        historial += OrdenRegistrada(orden, ahora, resultado)
+        return resultado
+    }
+
+    private fun aplicar(accion: Accion, ahora: Long): Boolean = when (accion) {
+        Accion.EMPEZAR -> when (fase) {
+            Fase.PREPARADO, Fase.PAUSA -> {
+                val completa = repeticiones[indice] >= serieActual.objetivo
+                ponerEnMarcha(ahora)
+                if (completa) avanzar(ahora) else decir(Frases.empezar(serieActual))
+                true
+            }
+            else -> false
+        }
+        Accion.PAUSA -> when (fase) {
+            Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> {
+                pararReloj(ahora); avanzarEn = null; fase = Fase.PAUSA; decir(Frases.EN_PAUSA); true
+            }
+            else -> false
+        }
+        Accion.SIGUIENTE -> when (fase) {
+            Fase.TERMINADO -> false
+            else -> { avanzar(ahora); true }
+        }
+        Accion.TERMINAR -> when (fase) {
+            Fase.TERMINADO -> false
+            else -> { terminar(ahora); true }
+        }
+        Accion.AYUDA -> { ayudaVisible = !ayudaVisible; true }
+        Accion.FAVORITO -> when {
+            fase == Fase.TERMINADO && !favorito -> { favorito = true; decir(Frases.FAVORITO); true }
+            else -> false
+        }
+    }
+
+    /** El contador de la cámara avisa de una repetición. Solo cuenta con datos fiables (requisito 4). */
+    fun repeticion() {
+        if (conteo != Conteo.CONTANDO) return
+        repeticiones[indice]++
+        if (repeticiones[indice] >= serieActual.objetivo) {
+            fase = Fase.OBJETIVO_CUMPLIDO
+            avanzarEn = reloj() + 3000
+            decir(Frases.objetivo(rutina.series.getOrNull(indice + 1)))
+        }
+    }
+
+    fun actualizarEncuadre(ok: Boolean) { encuadreOk = ok }
+
+    /** Llamar a menudo (p. ej. cada 100 ms): hace el avance automático a los 3 s (requisito 3). */
+    fun tic() {
+        val en = avanzarEn ?: return
+        val ahora = reloj()
+        if (fase == Fase.OBJETIVO_CUMPLIDO && ahora >= en) avanzar(ahora)
+    }
+
+    /** Tiempo entrenando de verdad (sin contar pausas ni antes de empezar). */
+    fun tiempoMs(): Long = tiempoAcumulado + (enMarchaDesde?.let { reloj() - it } ?: 0)
+
+    fun totalPorEjercicio(): Map<Ejercicio, Int> =
+        rutina.series.indices.groupBy({ rutina.series[it].ejercicio }, { repeticiones[it] }).mapValues { it.value.sum() }
+
+    private fun avanzar(ahora: Long) {
+        avanzarEn = null
+        if (indice + 1 >= rutina.series.size) { terminar(ahora); return }
+        indice++
+        if (fase == Fase.OBJETIVO_CUMPLIDO) fase = Fase.EN_MARCHA
+        decir(Frases.cambio(serieActual))
+    }
+
+    private fun terminar(ahora: Long) {
+        pararReloj(ahora); avanzarEn = null
+        fase = Fase.TERMINADO
+        decir(Frases.TERMINADO)
+    }
+
+    private fun ponerEnMarcha(ahora: Long) { fase = Fase.EN_MARCHA; enMarchaDesde = ahora }
+
+    private fun pararReloj(ahora: Long) {
+        enMarchaDesde?.let { tiempoAcumulado += ahora - it }
+        enMarchaDesde = null
+    }
+
+    private fun decir(frase: String) { ultimoAnuncio = frase; anunciar(frase) }
+}

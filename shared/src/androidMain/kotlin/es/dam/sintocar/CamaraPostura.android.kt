@@ -45,7 +45,7 @@ private class AnalizadorCuerpo(context: Context) : Analizador<Lectura> {
     private val mano = try { AnalizadorGestos(context) } catch (e: Exception) { null }
 
     override fun analizar(imagen: Bitmap, instanteMs: Long) =
-        Lectura(postura.analizar(imagen), mano?.analizar(imagen, instanteMs))
+        Lectura(postura.analizar(imagen), mano?.analizar(imagen, instanteMs), gestosDisponibles = mano != null)
 
     override fun cerrar() { postura.cerrar(); mano?.cerrar() }
 }

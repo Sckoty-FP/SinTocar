@@ -50,7 +50,7 @@ private class AnalizadorCuerpoEscritorio : AnalizadorEscritorio<Lectura> {
         val p = postura.analizar(imagen)
         val toca = imagenes++ % 3 == 0
         val g = if (toca) try { mano?.analizar(imagen) } catch (e: Exception) { null } else null
-        return Lectura(p, g)
+        return Lectura(p, g, gestosDisponibles = mano != null)
     }
 }
 

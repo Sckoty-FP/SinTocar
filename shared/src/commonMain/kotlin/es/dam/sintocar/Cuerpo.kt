@@ -19,7 +19,7 @@ class Postura(val puntos: Map<Parte, Punto>) {
  * Lo que sale de UNA imagen de la cámara frontal: la postura y, si esa imagen se ha mirado, el gesto de la mano.
  * [gesto] es null si no se ha analizado la mano (en el PC solo se mira 1 de cada 3 imágenes) o si falta el modelo.
  */
-class Lectura(val postura: Postura, val gesto: Gesto?)
+class Lectura(val postura: Postura, val gesto: Gesto?, val gestosDisponibles: Boolean = true)
 
 /**
  * Cámara frontal que avisa con la lectura de cada imagen. La MISMA imagen pasa por la postura y por la mano

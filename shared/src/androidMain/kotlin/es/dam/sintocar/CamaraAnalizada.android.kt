@@ -3,6 +3,7 @@ package es.dam.sintocar
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Log
 import android.os.SystemClock
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -61,16 +62,21 @@ internal fun <T> CamaraAnalizada(
         val principal = ContextCompat.getMainExecutor(context)
         val analizador = crearAnalizador(context)
         controlador.setImageAnalysisAnalyzer(hilo) { proxy ->
-            val girada = proxy.use {
-                val original = it.toBitmap()
-                val m = Matrix().apply {
-                    postRotate(it.imageInfo.rotationDegrees.toFloat())
-                    postScale(-1f, 1f)   // espejo, como la vista previa frontal
+            // Si algo falla con una imagen (modelo, memoria...), se salta esa imagen: la app no se cae.
+            try {
+                val girada = proxy.use {
+                    val original = it.toBitmap()
+                    val m = Matrix().apply {
+                        postRotate(it.imageInfo.rotationDegrees.toFloat())
+                        postScale(-1f, 1f)   // espejo, como la vista previa frontal
+                    }
+                    Bitmap.createBitmap(original, 0, 0, original.width, original.height, m, true)
                 }
-                Bitmap.createBitmap(original, 0, 0, original.width, original.height, m, true)
+                val resultado = analizador.analizar(girada, SystemClock.uptimeMillis())
+                principal.execute { avisar(resultado) }
+            } catch (e: Exception) {
+                Log.w("CamaraAnalizada", "Imagen saltada: ${e.message}")
             }
-            val resultado = analizador.analizar(girada, SystemClock.uptimeMillis())
-            principal.execute { avisar(resultado) }
         }
         controlador.bindToLifecycle(ciclo)
         onDispose {

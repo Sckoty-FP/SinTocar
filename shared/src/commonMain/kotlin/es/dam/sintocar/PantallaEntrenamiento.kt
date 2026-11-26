@@ -65,12 +65,15 @@ fun PantallaEntrenamiento(
     var gestoViendo by remember { mutableStateOf("None") }
     var progresoGesto by remember { mutableFloatStateOf(0f) }
     var gestoHechoEn by remember { mutableLongStateOf(-10_000L) }
+    var gestosDisponibles by remember { mutableStateOf(true) }   // false si falta el modelo de la mano
+    var enCruzAhora by remember { mutableStateOf(false) }
 
     // Cada imagen de la cámara (o del maniquí) pasa por aquí.
     val procesar by rememberUpdatedState { p: Postura ->
         postura = p
         control.actualizarEncuadre(encuadre(p) == Encuadre.CORRECTO)
         val enCruz = brazosEnCruz(p)
+        enCruzAhora = enCruz
         // 1) La postura de pausa funciona aunque esté en pausa: es la que la quita.
         if (cruz.actualizar(enCruz, reloj())) control.accionBrazosEnCruz?.let { control.ordenar(Orden(it, Origen.POSTURA)) }
         progresoCruz = cruz.progreso
@@ -87,7 +90,8 @@ fun PantallaEntrenamiento(
     }
     // Cada gesto de la mano (de la cámara o del simulador) entra aquí.
     val procesarGesto by rememberUpdatedState { g: Gesto ->
-        lector.leer(g)?.let { orden ->
+        // Brazos en cruz y palma abierta se pisan: mientras se cruzan los brazos, la mano no manda.
+        lector.leer(g, ignorar = ignorarGestos(enCruzAhora, cruz.progreso))?.let { orden ->
             control.ordenar(orden)
             gestoHechoEn = reloj()
         }
@@ -107,6 +111,7 @@ fun PantallaEntrenamiento(
         val camara = @Composable { m: Modifier ->
             CamaraConEsqueleto(postura, colorEsqueleto, conCamara = !usarManiqui && permisoCamara.estado == EstadoPermiso.CONCEDIDO,
                 modifier = m) { lectura ->
+                gestosDisponibles = lectura.gestosDisponibles
                 procesar(lectura.postura)
                 lectura.gesto?.let { procesarGesto(it) }   // null = esta imagen no se ha mirado con la mano
             }
@@ -118,8 +123,8 @@ fun PantallaEntrenamiento(
                 else -> EstadoAccion.INACTIVA
             }
             Panel(control, escucha, ahora, contador.abajo, incompleta, progresoCruz, usarManiqui,
-                gestoViendo, estadoGesto, progresoGesto,
-                alCambiarManiqui = { usarManiqui = it }, alManiqui = { procesar(it) },
+                gestoViendo, estadoGesto, progresoGesto, gestosDisponibles,
+                alCambiarManiqui = { usarManiqui = it; if (it) gestosDisponibles = true }, alManiqui = { procesar(it) },
                 alGestoSimulado = { procesarGesto(it) }, modifier = m)
         }
         if (horizontal) Row(Modifier.fillMaxSize()) {
@@ -145,6 +150,7 @@ private fun Panel(
     gestoViendo: String,
     estadoGesto: EstadoAccion,
     progresoGesto: Float,
+    gestosDisponibles: Boolean,
     alCambiarManiqui: (Boolean) -> Unit,
     alManiqui: (Postura) -> Unit,
     alGestoSimulado: (Gesto) -> Unit,
@@ -202,6 +208,7 @@ private fun Panel(
                 estadoGesto == EstadoAccion.HECHA -> "¡Hecho!"
                 accionGesto == Accion.PAUSA -> "${enCastellano(gestoViendo)} → pausa"
                 accionGesto == Accion.SIGUIENTE -> "${enCastellano(gestoViendo)} → siguiente"
+                !gestosDisponibles -> "Gestos no disponibles"
                 else -> "Palma ✋ = pausa · pulgar 👍 = siguiente"
             },
             progresoGesto,

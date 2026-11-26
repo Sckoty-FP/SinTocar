@@ -31,7 +31,7 @@ fun MarcadorEncuadre(encuadre: Encuadre, modifier: Modifier = Modifier) {
     Text(
         encuadre.texto,
         modifier = modifier.background(encuadre.color, RoundedCornerShape(50)).padding(horizontal = 16.dp, vertical = 8.dp),
-        color = Color.White,
+        color = Color.Black,   // negro: el blanco sobre ámbar o verde no llega al contraste AA
         fontSize = 22.sp,   // a 2 o 3 m: textos de apoyo de 20 o más
         fontWeight = FontWeight.Bold,
     )

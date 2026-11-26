@@ -30,6 +30,8 @@ object Colores {
     val correcto = Color(0xFF26A69A)
     val aviso = Color(0xFFFFB300)
     val error = Color(0xFFE53935)
+    /** Rojo más claro para TEXTO: el de arriba no llega al contraste AA (4,4:1) sobre el fondo oscuro. */
+    val errorTexto = Color(0xFFEF5350)
     val primario = Color(0xFF42A5F5)
 }
 

@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 fun IndicadorVoz(estado: EstadoIndicador, frase: String?, accion: Accion?, error: String?, hablando: Boolean, pista: String) {
     val (color, texto) = when (estado) {
         EstadoIndicador.INACTIVO -> Colores.textoSuave to (if (hablando) "🔈 Hablando…" else "🎤 Micrófono en espera")
-        EstadoIndicador.ESCUCHANDO -> Colores.error to "🎤 Te escucho…"
+        EstadoIndicador.ESCUCHANDO -> Colores.errorTexto to "🎤 Te escucho…"
         EstadoIndicador.RECONOCIDO -> Colores.correcto to "✔ «${frase.orEmpty()}» → ${accion?.texto()}"
         EstadoIndicador.NO_ENTENDIDO -> Colores.aviso to "No te he entendido. Prueba: $pista"
     }
@@ -55,6 +55,6 @@ fun IndicadorVoz(estado: EstadoIndicador, frase: String?, accion: Accion?, error
             Text(texto, color = if (estado == EstadoIndicador.INACTIVO) Colores.textoSuave else color,
                 fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold)
         }
-        if (error != null) Text(error, color = Colores.error, fontSize = Tamanos.apoyo)
+        if (error != null) Text(error, color = Colores.errorTexto, fontSize = Tamanos.apoyo)
     }
 }

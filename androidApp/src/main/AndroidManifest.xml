@@ -3,6 +3,8 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <!-- RA opcional (Tema 8): la app se instala también en móviles sin ARCore. -->
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Desde Android 11, sin esto la app no "ve" el servicio de voz ni el de texto a voz. -->
     <queries>
@@ -17,6 +19,7 @@
     <application
         android:label="Sin Tocar"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
 
         <activity
             android:name=".MainActivity"

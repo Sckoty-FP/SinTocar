@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.mlkit.pose)
             implementation(libs.mlkit.face)                 // sonrisa en el Resumen (Tema 7)
             implementation(libs.mediapipe.tasks.vision)     // gestos de la mano (Tema 7)
+            implementation(libs.sceneview.ar)               // realidad aumentada: SceneView + ARCore (Tema 8)
         }
         jvmMain.dependencies {
             implementation(libs.opencv)

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import nu.pattern.OpenCV
@@ -48,20 +49,30 @@ internal fun <T> CamaraWeb(
     espejo: Boolean = true,
     crearAnalizador: (() -> AnalizadorEscritorio<T>)? = null,
     alResultado: (T) -> Unit = {},
+    imagenDePrueba: (() -> Mat)? = null,   // si no es null, se usa en vez de la cámara (unas 15 por segundo)
 ) {
     var imagen by remember { mutableStateOf<ImageBitmap?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val avisar by rememberUpdatedState(alResultado)
 
-    LaunchedEffect(numeroCamara) {
+    val prueba by rememberUpdatedState(imagenDePrueba)
+    LaunchedEffect(numeroCamara, imagenDePrueba == null) {
         withContext(Dispatchers.IO) {                     // la cámara y los modelos, fuera del hilo de la ventana
             OpenCV.loadLocally()                          // carga la librería nativa de OpenCV que viene en el .jar
-            val camara = VideoCapture(numeroCamara)
-            if (!camara.isOpened) { error = "No se encuentra la cámara web $numeroCamara"; return@withContext }
-            val analizador = try { crearAnalizador?.invoke() } catch (e: Exception) { error = e.message; camara.release(); return@withContext }
+            val camara = if (prueba == null) VideoCapture(numeroCamara) else null
+            if (camara != null && !camara.isOpened) { error = "No se encuentra la cámara web $numeroCamara"; return@withContext }
+            error = null
+            val analizador = try { crearAnalizador?.invoke() } catch (e: Exception) { error = e.message; camara?.release(); return@withContext }
             val fotograma = Mat()
+            // Lee una imagen: de la cámara o, sin cámara, la imagen de prueba.
+            fun leer(): Boolean {
+                val generar = prueba ?: return camara!!.read(fotograma)
+                generar().copyTo(fotograma)
+                return true
+            }
             try {
-                while (isActive && camara.read(fotograma)) {
+                while (isActive && leer()) {
+                    if (camara == null) delay(66)
                     if (espejo) Core.flip(fotograma, fotograma, 1)   // espejo, como la cámara frontal del móvil
                     val ancho = minOf(fotograma.width(), fotograma.height() * 3 / 4)
                     val vertical = Mat(fotograma, Rect((fotograma.width() - ancho) / 2, 0, ancho, fotograma.height()))
@@ -73,7 +84,7 @@ internal fun <T> CamaraWeb(
                     }
                 }
             } finally {
-                camara.release()                          // al salir de la pantalla, se apaga la cámara
+                camara?.release()                         // al salir de la pantalla, se apaga la cámara
             }
         }
     }

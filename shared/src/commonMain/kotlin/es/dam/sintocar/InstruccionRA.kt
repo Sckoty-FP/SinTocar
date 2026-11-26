@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 /** Variantes del componente «Instrucción de RA» de Figma: una por fase de la experiencia. */
 enum class FaseRA(val icono: String, val fondo: Color, val nombre: String) {
     BUSCANDO("📱", Color(0xFFFFB300), "Buscando el suelo"),   // aún no hay suelo: hay que mover el dispositivo
-    LISTO("👆", Color(0xFFFF7A3D), "Listo para colocar"),     // hay suelo: ya se puede colocar
+    LISTO("👆", Color(0xFFFF7A3D), "Suelo encontrado"),     // hay suelo: ya se puede colocar
     COLOCADO("✅", Color(0xFF26A69A), "Colocado"),            // el objeto está en su sitio
     PROBLEMA("⚠", Color(0xFFE53935), "Problema"),            // poca luz, movimiento brusco…
 }
@@ -45,7 +45,7 @@ fun InstruccionRA(fase: FaseRA, texto: String) {
         Modifier.fillMaxWidth().background(fase.fondo, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)
             // Región viva: cada cambio de fase se anuncia. El estado va en el texto, no solo en el color.
             .clearAndSetSemantics {
-                contentDescription = "${fase.nombre}. $texto"
+                contentDescription = descripcionInstruccionRA(fase, texto)
                 liveRegion = LiveRegionMode.Polite
             },
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -56,3 +56,6 @@ fun InstruccionRA(fase: FaseRA, texto: String) {
              fontSize = 18.sp, fontWeight = FontWeight.Bold)
     }
 }
+
+/** Lo que lee el lector de pantalla de la franja: nombre de la fase y la instrucción. */
+fun descripcionInstruccionRA(fase: FaseRA, texto: String) = "${fase.nombre}. $texto"

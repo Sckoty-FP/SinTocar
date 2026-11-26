@@ -175,18 +175,8 @@ private fun Panel(
             })
 
         // Por qué cuenta o no cuenta (requisito 4): una sola instrucción, la más importante.
-        val (mensaje, color) = when (c.conteo) {
-            Conteo.SIN_EMPEZAR -> "Preparado" to Colores.textoSuave
-            Conteo.EN_PAUSA -> "⏸ En pausa · no cuento" to Colores.aviso
-            Conteo.SIN_ENCUADRE -> "No cuento: colócate para que te vea entero" to Colores.error
-            Conteo.ANUNCIANDO -> c.ultimoAnuncio.orEmpty() to Colores.correcto
-            Conteo.TERMINADO -> "" to Colores.texto
-            Conteo.CONTANDO -> when {
-                incompleta -> "Baja más" to Colores.aviso
-                abajo -> "⬆ Bien, ahora sube" to Colores.correcto
-                else -> "⬇ Baja" to Colores.correcto
-            }
-        }
+        val mensaje = textoConteo(c.conteo, c.ultimoAnuncio, incompleta, abajo)
+        val color = colorConteo(c.conteo, incompleta)
         Text(mensaje, fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = color,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
 
@@ -251,6 +241,32 @@ private fun Panel(
         confirmButton = { TextButton(onClick = { confirmarTerminar = false; toque(Accion.TERMINAR) }, modifier = Modifier.botonAccesible()) { Text("Sí, terminar", fontSize = Tamanos.apoyo) } },
         dismissButton = { TextButton(onClick = { confirmarTerminar = false }, modifier = Modifier.botonAccesible()) { Text("No, seguir", fontSize = Tamanos.apoyo) } },
     )
+}
+
+/**
+ * Qué dice la franja de estado (es una región viva: el lector de pantalla la lee en voz alta por el altavoz).
+ * Por eso NINGUNA palabra de MAPA_VOZ puede salir aquí: ni «pausa» ni «para». Lo comprueba un test.
+ */
+fun textoConteo(conteo: Conteo, anuncio: String?, incompleta: Boolean, abajo: Boolean) = when (conteo) {
+    Conteo.SIN_EMPEZAR -> "Preparado"
+    Conteo.EN_PAUSA -> "⏸ Detenido · no cuento"
+    Conteo.SIN_ENCUADRE -> "No cuento: aléjate hasta que te vea entero"
+    Conteo.ANUNCIANDO -> anuncio.orEmpty()
+    Conteo.TERMINADO -> ""
+    Conteo.CONTANDO -> when {
+        incompleta -> "Baja más"
+        abajo -> "⬆ Bien, ahora sube"
+        else -> "⬇ Baja"
+    }
+}
+
+private fun colorConteo(conteo: Conteo, incompleta: Boolean) = when (conteo) {
+    Conteo.SIN_EMPEZAR -> Colores.textoSuave
+    Conteo.EN_PAUSA -> Colores.aviso
+    Conteo.SIN_ENCUADRE -> Colores.error
+    Conteo.ANUNCIANDO -> Colores.correcto
+    Conteo.TERMINADO -> Colores.texto
+    Conteo.CONTANDO -> if (incompleta) Colores.aviso else Colores.correcto
 }
 
 /** La pista de cada momento, en pantalla. */

@@ -41,7 +41,7 @@ import kotlin.math.sqrt
 private const val LADO_MARCADOR = 0.15
 
 actual val comoBuscar = "Enseña el marcador impreso a la cámara"
-actual val comoColocar = "Haz clic en la imagen para colocar la esterilla"
+actual val comoColocar = "Haz clic en la imagen: ahí queda la esterilla"
 
 @Composable
 actual fun compatibilidadRA(): String =

@@ -69,13 +69,17 @@ fun IndicadorVoz(estado: EstadoIndicador, frase: String?, accion: Accion?, error
     }
 }
 
-/** Lo que lee el lector de pantalla: lo mismo que se ve, pero sin emojis ni flechas. */
+/**
+ * Lo que lee el lector de pantalla: lo mismo que se ve, pero sin emojis ni flechas.
+ * Ojo: TalkBack lo dice por el altavoz y el micrófono lo oye, así que NO puede llevar ninguna palabra de
+ * MAPA_VOZ (ni la frase reconocida, ni la acción, ni la pista). Eso solo se ve en pantalla.
+ */
 fun descripcionIndicador(estado: EstadoIndicador, frase: String?, accion: Accion?, error: String?, hablando: Boolean, pista: String): String {
     val base = when (estado) {
         EstadoIndicador.INACTIVO -> if (hablando) "Hablando" else "Micrófono en espera"
         EstadoIndicador.ESCUCHANDO -> "Te escucho"
-        EstadoIndicador.RECONOCIDO -> "Orden reconocida: ${frase.orEmpty()}, ${accion?.texto().orEmpty()}"
-        EstadoIndicador.NO_ENTENDIDO -> "No te he entendido. Prueba: $pista"
+        EstadoIndicador.RECONOCIDO -> "Orden reconocida"
+        EstadoIndicador.NO_ENTENDIDO -> "No te he entendido. Mira la pista en pantalla"
     }
     return if (error != null) "$base. Error: $error" else base
 }

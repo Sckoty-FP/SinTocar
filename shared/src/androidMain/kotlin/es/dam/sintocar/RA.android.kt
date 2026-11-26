@@ -26,7 +26,7 @@ import io.github.sceneview.rememberOnGestureListener
 import kotlin.math.sqrt
 
 actual val comoBuscar = "Mueve el móvil despacio apuntando al suelo"
-actual val comoColocar = "Toca la rejilla para colocar la esterilla"
+actual val comoColocar = "Toca la rejilla: ahí queda la esterilla"
 
 @Composable
 actual fun compatibilidadRA(): String {

@@ -1,5 +1,6 @@
 package es.dam.sintocar
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,12 +20,12 @@ private val PARTES = mapOf(
     Parte.TOBILLO_IZQ to PoseLandmark.LEFT_ANKLE, Parte.TOBILLO_DER to PoseLandmark.RIGHT_ANKLE,
 )
 
-private class AnalizadorPostura : Analizador<Postura> {
+private class AnalizadorPostura {
     private val detector = PoseDetection.getClient(
         PoseDetectorOptions.Builder().setDetectorMode(PoseDetectorOptions.STREAM_MODE).build()
     )
 
-    override fun analizar(imagen: Bitmap, instanteMs: Long): Postura {
+    fun analizar(imagen: Bitmap): Postura {
         val pose = Tasks.await(detector.process(InputImage.fromBitmap(imagen, 0)))
         val puntos = PARTES.mapNotNull { (parte, tipo) ->
             pose.getPoseLandmark(tipo)?.let {
@@ -34,9 +35,21 @@ private class AnalizadorPostura : Analizador<Postura> {
         return Postura(puntos)
     }
 
-    override fun cerrar() = detector.close()
+    fun cerrar() = detector.close()
+}
+
+/** La misma imagen pasa por la postura (ML Kit) y por la mano (MediaPipe). */
+private class AnalizadorCuerpo(context: Context) : Analizador<Lectura> {
+    private val postura = AnalizadorPostura()
+    // Si el modelo de gestos no se puede abrir, la postura sigue funcionando sin gestos.
+    private val mano = try { AnalizadorGestos(context) } catch (e: Exception) { null }
+
+    override fun analizar(imagen: Bitmap, instanteMs: Long) =
+        Lectura(postura.analizar(imagen), mano?.analizar(imagen, instanteMs))
+
+    override fun cerrar() { postura.cerrar(); mano?.cerrar() }
 }
 
 @Composable
-actual fun CamaraPostura(modifier: Modifier, alDetectar: (Postura) -> Unit) =
-    CamaraAnalizada(modifier, { AnalizadorPostura() }, alDetectar)
+actual fun CamaraPostura(modifier: Modifier, alDetectar: (Lectura) -> Unit) =
+    CamaraAnalizada(modifier, { AnalizadorCuerpo(it) }, alDetectar)

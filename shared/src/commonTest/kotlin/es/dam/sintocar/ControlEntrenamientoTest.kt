@@ -15,6 +15,8 @@ private fun control(rutina: Rutina = Rutina.SUAVE, reloj: Reloj = Reloj()) =
 private fun toque(a: Accion) = Orden(a, Origen.TOQUE)
 private fun voz(a: Accion) = Orden(a, Origen.VOZ)
 private fun postura(a: Accion) = Orden(a, Origen.POSTURA)
+private fun gesto(a: Accion) = Orden(a, Origen.GESTO)
+private fun cara(a: Accion) = Orden(a, Origen.CARA)
 
 class ArranqueTest {
     @Test fun empiezaPreparado() {
@@ -174,20 +176,24 @@ class OrdenesTest {
 
     @Test fun favoritoSoloEnElResumen() {
         val r = Reloj(); val c = control(reloj = r)
-        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(voz(Accion.FAVORITO)))
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(cara(Accion.FAVORITO)))
         c.ordenar(toque(Accion.TERMINAR)); r.avanzar(1000)
-        assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.FAVORITO)))
+        assertEquals(Resultado.APLICADA, c.ordenar(cara(Accion.FAVORITO)))
         assertTrue(c.favorito)
+        assertEquals(Origen.CARA, c.historial.last().orden.origen)
     }
 
     @Test fun pausaSinEmpezarNoDisponible() =
         assertEquals(Resultado.NO_DISPONIBLE, control().ordenar(toque(Accion.PAUSA)))
 
-    @Test fun brazosEnCruzEmpiezaOPausaSegunLaFase() {
+    @Test fun brazosEnCruzNoHacenNadaAntesDeEmpezar() = assertNull(control().accionBrazosEnCruz)
+
+    @Test fun brazosEnCruzPausanEnMarchaYSiguenEnPausa() {
         val r = Reloj(); val c = control(reloj = r)
-        assertEquals(Accion.EMPEZAR, c.accionBrazosEnCruz)
-        c.ordenar(postura(Accion.EMPEZAR)); r.avanzar(1000)
+        c.ordenar(toque(Accion.EMPEZAR)); r.avanzar(1000)
         assertEquals(Accion.PAUSA, c.accionBrazosEnCruz)
+        c.ordenar(postura(Accion.PAUSA)); r.avanzar(1000)
+        assertEquals(Accion.EMPEZAR, c.accionBrazosEnCruz)
         c.ordenar(toque(Accion.TERMINAR))
         assertNull(c.accionBrazosEnCruz)
     }
@@ -218,8 +224,10 @@ class VozTest {
         assertEquals(Accion.SIGUIENTE, interpretar("siguiente"))
         assertEquals(Accion.TERMINAR, interpretar("terminar"))
         assertEquals(Accion.AYUDA, interpretar("ayuda"))
-        assertEquals(Accion.FAVORITO, interpretar("favorito"))
     }
+
+    /** Mapa nuevo: «favorito» ya no se dice, se guarda con la sonrisa o con el botón. */
+    @Test fun favoritoYaNoSeDicePorVoz() = assertNull(interpretar("favorito"))
 
     @Test fun loQueNoEsOrdenDevuelveNull() {
         assertNull(interpretar("hola qué tal"))
@@ -241,5 +249,49 @@ class VozTest {
         assertTrue(anuncios.isNotEmpty())
         assertTrue(anuncios.all { it in Frases.todas() }, "Todo lo que se dice sale de Frases")
         todas.forEach { assertNull(interpretar(it), "La app diría una orden: «$it»") }
+    }
+}
+
+class GestoTest {
+    @Test fun palmaAbiertaPausaEnMarcha() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR)); r.avanzar(1000)
+        assertEquals(Resultado.APLICADA, c.ordenar(gesto(Accion.PAUSA)))
+        assertEquals(Fase.PAUSA, c.fase)
+        assertEquals(Origen.GESTO, c.historial.last().orden.origen)
+    }
+
+    @Test fun pulgarArribaPasaALaSiguienteSerie() {
+        val c = control()
+        c.ordenar(toque(Accion.EMPEZAR))
+        assertEquals(Resultado.APLICADA, c.ordenar(gesto(Accion.SIGUIENTE)))
+        assertEquals(1, c.indice)
+    }
+
+    @Test fun palmaSinEmpezarNoDisponible() {
+        val c = control()
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(gesto(Accion.PAUSA)))
+        assertEquals(Fase.PREPARADO, c.fase)
+        assertEquals(Origen.GESTO, c.historial.last().orden.origen)   // se anota igual, con su origen
+    }
+
+    @Test fun debounceEntreOrigenesDistintos() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR))
+        c.ordenar(voz(Accion.SIGUIENTE))
+        r.avanzar(500)
+        assertEquals(Resultado.REPETIDA, c.ordenar(gesto(Accion.SIGUIENTE)))
+        assertEquals(1, c.indice)                        // solo avanzó una vez
+        r.avanzar(500)
+        assertEquals(Resultado.APLICADA, c.ordenar(gesto(Accion.SIGUIENTE)))
+        assertEquals(2, c.indice)
+    }
+
+    @Test fun gestoYPosturaNoSeBloqueanSiSonAccionesDistintas() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR))
+        r.avanzar(100)
+        assertEquals(Resultado.APLICADA, c.ordenar(gesto(Accion.SIGUIENTE)))
+        assertEquals(Resultado.APLICADA, c.ordenar(postura(Accion.PAUSA)))
     }
 }

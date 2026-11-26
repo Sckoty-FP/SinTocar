@@ -4,19 +4,21 @@ package es.dam.sintocar
 enum class Accion { EMPEZAR, PAUSA, SIGUIENTE, TERMINAR, AYUDA, FAVORITO }
 
 /** Por dónde llegó la orden. El Resumen lo enseña. */
-enum class Origen { VOZ, POSTURA, TOQUE }
+enum class Origen { VOZ, POSTURA, TOQUE, GESTO, CARA }
 
 /** Una orden con su origen: lo único que entra en [ControlEntrenamiento]. */
 data class Orden(val accion: Accion, val origen: Origen)
 
-/** Columna «Voz» del mapa de órdenes: palabra → acción. */
+/**
+ * Columna «Voz» del mapa de órdenes: palabra → acción.
+ * «Favorito» ya no se dice: en el mapa nuevo se guarda con la sonrisa o con el botón.
+ */
 val MAPA_VOZ: Map<String, Accion> = mapOf(
     "empezar" to Accion.EMPEZAR, "sigue" to Accion.EMPEZAR,
     "pausa" to Accion.PAUSA, "para" to Accion.PAUSA,
     "siguiente" to Accion.SIGUIENTE,
     "terminar" to Accion.TERMINAR,
     "ayuda" to Accion.AYUDA,
-    "favorito" to Accion.FAVORITO,
 )
 
 /**

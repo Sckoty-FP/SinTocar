@@ -66,15 +66,18 @@ class ControlEntrenamiento(
             Fase.EN_MARCHA -> if (encuadreOk) Conteo.CONTANDO else Conteo.SIN_ENCUADRE
         }
 
-    /** Lo que significa «brazos en cruz 2 s» ahora mismo: empezar/seguir, pausar, o nada. */
+    /**
+     * Lo que significa «brazos en cruz 2 s» ahora mismo: seguir si está en pausa, pausar si está en marcha,
+     * y nada antes de empezar (mapa nuevo: para empezar hay que decirlo o pulsar).
+     */
     val accionBrazosEnCruz: Accion?
         get() = when (fase) {
-            Fase.PREPARADO, Fase.PAUSA -> Accion.EMPEZAR
+            Fase.PAUSA -> Accion.EMPEZAR
             Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> Accion.PAUSA
-            Fase.TERMINADO -> null
+            Fase.PREPARADO, Fase.TERMINADO -> null
         }
 
-    /** Punto único de entrada de órdenes (requisito 1). */
+    /** Punto único de entrada de órdenes: voz, postura, toque, gesto y cara (requisito 1). */
     fun ordenar(orden: Orden): Resultado {
         val ahora = reloj()
         val anterior = ultimaVez[orden.accion]

@@ -56,6 +56,11 @@ fun PantallaEntrenamiento(
     // Un contador nuevo en cada serie, para no arrastrar una bajada a medias del ejercicio anterior.
     val contador = remember(control.indice) { ContadorEjercicio.para(control.serieActual.ejercicio) }
     var incompletaEn by remember { mutableLongStateOf(-10_000L) }
+    // Gestos de la mano: el mismo fotograma que la postura. El lector los convierte en órdenes.
+    val lector = remember { LectorGestos(5) }
+    var gestoViendo by remember { mutableStateOf("None") }
+    var progresoGesto by remember { mutableFloatStateOf(0f) }
+    var gestoHechoEn by remember { mutableLongStateOf(-10_000L) }
 
     // Cada imagen de la cámara (o del maniquí) pasa por aquí.
     val procesar by rememberUpdatedState { p: Postura ->
@@ -76,6 +81,15 @@ fun PantallaEntrenamiento(
             }
         }
     }
+    // Cada gesto de la mano (de la cámara o del simulador) entra aquí.
+    val procesarGesto by rememberUpdatedState { g: Gesto ->
+        lector.leer(g)?.let { orden ->
+            control.ordenar(orden)
+            gestoHechoEn = reloj()
+        }
+        gestoViendo = lector.viendo
+        progresoGesto = lector.progreso
+    }
     val incompleta = ahora - incompletaEn < 1500
     val colorEsqueleto = when {
         control.conteo != Conteo.CONTANDO -> Colores.textoSuave
@@ -88,11 +102,21 @@ fun PantallaEntrenamiento(
         val altoCamara = maxHeight * 0.45f
         val camara = @Composable { m: Modifier ->
             CamaraConEsqueleto(postura, colorEsqueleto, conCamara = !usarManiqui && permisoCamara.estado == EstadoPermiso.CONCEDIDO,
-                modifier = m) { procesar(it) }
+                modifier = m) { lectura ->
+                procesar(lectura.postura)
+                lectura.gesto?.let { procesarGesto(it) }   // null = esta imagen no se ha mirado con la mano
+            }
         }
         val panel = @Composable { m: Modifier ->
+            val estadoGesto = when {
+                ahora - gestoHechoEn < 1000 -> EstadoAccion.HECHA
+                progresoGesto > 0f -> EstadoAccion.MANTENIENDO
+                else -> EstadoAccion.INACTIVA
+            }
             Panel(control, escucha, ahora, contador.abajo, incompleta, progresoCruz, usarManiqui,
-                alCambiarManiqui = { usarManiqui = it }, alManiqui = { procesar(it) }, modifier = m)
+                gestoViendo, estadoGesto, progresoGesto,
+                alCambiarManiqui = { usarManiqui = it }, alManiqui = { procesar(it) },
+                alGestoSimulado = { procesarGesto(it) }, modifier = m)
         }
         if (horizontal) Row(Modifier.fillMaxSize()) {
             camara(Modifier.fillMaxHeight().aspectRatio(3f / 4f))
@@ -114,8 +138,12 @@ private fun Panel(
     incompleta: Boolean,
     progresoCruz: Float,
     usarManiqui: Boolean,
+    gestoViendo: String,
+    estadoGesto: EstadoAccion,
+    progresoGesto: Float,
     alCambiarManiqui: (Boolean) -> Unit,
     alManiqui: (Postura) -> Unit,
+    alGestoSimulado: (Gesto) -> Unit,
     modifier: Modifier,
 ) {
     var confirmarTerminar by remember { mutableStateOf(false) }
@@ -160,11 +188,24 @@ private fun Panel(
 
         // Barra de la postura de pausa: cuánto falta de los 2 segundos con los brazos en cruz.
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Brazos en cruz 2 s → ${if (c.accionBrazosEnCruz == Accion.PAUSA) "pausa" else "empezar / seguir"}",
+            Text("Brazos en cruz 2 s → ${when (c.accionBrazosEnCruz) { Accion.PAUSA -> "pausa"; Accion.EMPEZAR -> "seguir"; else -> "nada ahora" }}",
                 fontSize = Tamanos.apoyo, color = Colores.textoSuave)
             LinearProgressIndicator(progress = { progresoCruz }, modifier = Modifier.fillMaxWidth().height(12.dp),
                 color = Colores.aviso)
         }
+
+        // Gesto de la mano: qué se ve y cuánto falta para que cuente (componente «Acción mantenida» de Figma).
+        val accionGesto = LectorGestos.accionDe(gestoViendo)
+        AccionMantenida(
+            estadoGesto,
+            when {
+                estadoGesto == EstadoAccion.HECHA -> "¡Hecho!"
+                accionGesto == Accion.PAUSA -> "${enCastellano(gestoViendo)} → pausa"
+                accionGesto == Accion.SIGUIENTE -> "${enCastellano(gestoViendo)} → siguiente"
+                else -> "Palma ✋ = pausa · pulgar 👍 = siguiente"
+            },
+            progresoGesto,
+        )
 
         // Alternativa táctil de cada orden.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -186,7 +227,10 @@ private fun Panel(
             Switch(checked = usarManiqui, onCheckedChange = alCambiarManiqui)
             Text("Sin cámara: usar el maniquí", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
         }
-        if (usarManiqui) Maniqui(alManiqui)
+        if (usarManiqui) {
+            Maniqui(alManiqui)
+            SimuladorGestos(alGestoSimulado)
+        }
     }
 
     // «Terminar» no se puede deshacer: con el botón se confirma (tolerancia al error).
@@ -201,8 +245,8 @@ private fun Panel(
 
 /** La pista de cada momento, en pantalla. */
 private fun pistaCorta(f: Fase) = when (f) {
-    Fase.PREPARADO -> "Di «empezar» o cruza los brazos 2 s"
-    Fase.EN_MARCHA -> "Di «pausa» o cruza los brazos 2 s · «siguiente» · «ayuda»"
+    Fase.PREPARADO -> "Di «empezar» o pulsa el botón"
+    Fase.EN_MARCHA -> "Di «pausa», cruza los brazos 2 s o enseña la palma · «siguiente» o pulgar arriba · «ayuda»"
     Fase.PAUSA -> "Di «sigue» o cruza los brazos 2 s"
     Fase.OBJETIVO_CUMPLIDO -> "Paso al siguiente en 3 s · di «pausa» para esperar"
     Fase.TERMINADO -> ""
@@ -212,7 +256,7 @@ private fun pistaCorta(f: Fase) = when (f) {
 fun pistaVoz(f: Fase) = when (f) {
     Fase.PREPARADO, Fase.PAUSA -> "«empezar»"
     Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> "«pausa»"
-    Fase.TERMINADO -> "«favorito»"
+    Fase.TERMINADO -> "«ayuda»"
 }
 
 /** El mapa de órdenes completo (requisito 2), visible con «ayuda». */
@@ -224,12 +268,13 @@ fun AyudaOrdenes() {
     ) {
         Text("Qué puedes hacer", fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold, color = Colores.texto)
         listOf(
-            "Empezar / seguir" to "«empezar», «sigue» · brazos en cruz 2 s · botón",
-            "Pausa" to "«pausa», «para» · brazos en cruz 2 s · botón",
-            "Siguiente ejercicio" to "«siguiente» · botón",
+            "Empezar" to "«empezar» · botón",
+            "Seguir (en pausa)" to "«sigue» · brazos en cruz 2 s · botón",
+            "Pausa" to "«pausa», «para» · brazos en cruz 2 s · ✋ palma abierta · botón",
+            "Siguiente ejercicio" to "«siguiente» · 👍 pulgar arriba · botón",
             "Terminar" to "«terminar» · botón (con confirmación)",
             "Ayuda" to "«ayuda» · botón",
-            "Favorito (en el resumen)" to "«favorito» · botón",
+            "Favorito (en el resumen)" to "😊 sonrisa 0,8 s · botón",
         ).forEach { (accion, como) ->
             Text("$accion: $como", fontSize = Tamanos.apoyo, color = Colores.texto)
         }

@@ -16,10 +16,10 @@ private val PARTES = mapOf(
  * Escritorio: el mismo modelo que usa MediaPipe (versión ONNX de OpenCV Zoo), ejecutado con OpenCV.
  * Funciona bien si la persona ocupa casi toda la imagen, como al entrenar delante de la cámara.
  */
-private class AnalizadorPosturaEscritorio : AnalizadorEscritorio<Postura> {
+private class AnalizadorPosturaEscritorio {
     private val red = Dnn.readNet(modelo("pose_estimation_mediapipe_2023mar.onnx"))
 
-    override fun analizar(imagen: Mat): Postura {
+    fun analizar(imagen: Mat): Postura {
         val c = Cuadrada(imagen, 256)                          // 256 × 256, como pide el modelo
         red.setInput(c.entrada)
         val salidas = ArrayList<Mat>()
@@ -36,7 +36,25 @@ private class AnalizadorPosturaEscritorio : AnalizadorEscritorio<Postura> {
     }
 }
 
+/**
+ * La misma imagen pasa por la postura y por la mano. La mano pesa mucho (dos modelos), así que
+ * solo se mira 1 de cada 3 imágenes; en las demás [Lectura.gesto] es null.
+ */
+private class AnalizadorCuerpoEscritorio : AnalizadorEscritorio<Lectura> {
+    private val postura = AnalizadorPosturaEscritorio()
+    // Si faltan los modelos de la mano, la postura sigue funcionando sin gestos.
+    private val mano = try { AnalizadorGestosEscritorio() } catch (e: Exception) { null }
+    private var imagenes = 0
+
+    override fun analizar(imagen: Mat): Lectura {
+        val p = postura.analizar(imagen)
+        val toca = imagenes++ % 3 == 0
+        val g = if (toca) try { mano?.analizar(imagen) } catch (e: Exception) { null } else null
+        return Lectura(p, g)
+    }
+}
+
 @Composable
-actual fun CamaraPostura(modifier: Modifier, alDetectar: (Postura) -> Unit) =
+actual fun CamaraPostura(modifier: Modifier, alDetectar: (Lectura) -> Unit) =
     CamaraWeb(modifier, numeroCamara = DispositivosEscritorio.camara,   // la elegida en «Dispositivos»
-        crearAnalizador = { AnalizadorPosturaEscritorio() }, alResultado = alDetectar)
+        crearAnalizador = { AnalizadorCuerpoEscritorio() }, alResultado = alDetectar)

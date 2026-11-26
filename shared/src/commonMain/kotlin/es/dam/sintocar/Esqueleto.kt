@@ -32,7 +32,7 @@ fun CamaraConEsqueleto(
     colorEsqueleto: Color,
     conCamara: Boolean,
     modifier: Modifier = Modifier,
-    alDetectar: (Postura) -> Unit,
+    alDetectar: (Lectura) -> Unit,
 ) {
     Box(modifier.background(Color.DarkGray)) {
         if (conCamara) CamaraPostura(Modifier.fillMaxSize(), alDetectar)

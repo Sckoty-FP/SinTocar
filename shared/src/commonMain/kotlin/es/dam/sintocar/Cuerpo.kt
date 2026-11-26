@@ -15,6 +15,15 @@ class Postura(val puntos: Map<Parte, Punto>) {
     fun visible(parte: Parte): Punto? = puntos[parte]?.takeIf { it.confianza > 0.6f }
 }
 
-/** Cámara frontal que avisa con la postura de cada imagen. En Android: CameraX + ML Kit. */
+/**
+ * Lo que sale de UNA imagen de la cámara frontal: la postura y, si esa imagen se ha mirado, el gesto de la mano.
+ * [gesto] es null si no se ha analizado la mano (en el PC solo se mira 1 de cada 3 imágenes) o si falta el modelo.
+ */
+class Lectura(val postura: Postura, val gesto: Gesto?)
+
+/**
+ * Cámara frontal que avisa con la lectura de cada imagen. La MISMA imagen pasa por la postura y por la mano
+ * (una sola cámara). En Android: CameraX + ML Kit + MediaPipe.
+ */
 @Composable
-expect fun CamaraPostura(modifier: Modifier, alDetectar: (Postura) -> Unit)
+expect fun CamaraPostura(modifier: Modifier, alDetectar: (Lectura) -> Unit)

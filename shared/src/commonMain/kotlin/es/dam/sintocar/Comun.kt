@@ -71,6 +71,8 @@ fun Origen.texto() = when (this) {
     Origen.VOZ -> "voz"
     Origen.POSTURA -> "postura"
     Origen.TOQUE -> "toque"
+    Origen.GESTO -> "gesto"
+    Origen.CARA -> "cara"
 }
 
 fun Accion.texto() = when (this) {

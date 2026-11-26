@@ -82,4 +82,6 @@ fun Accion.texto() = when (this) {
     Accion.TERMINAR -> "Terminar"
     Accion.AYUDA -> "Ayuda"
     Accion.FAVORITO -> "Favorito"
+    Accion.COLOCAR -> "Colocar esterilla"
+    Accion.QUITAR -> "Quitar esterilla"
 }

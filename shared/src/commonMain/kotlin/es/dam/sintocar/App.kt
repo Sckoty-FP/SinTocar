@@ -14,22 +14,26 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 import kotlin.time.TimeSource
 
+private data class Destino(val rutina: Rutina, val conZonaRA: Boolean)
+
 private class Ref<T> { var valor: T? = null }
 
-/** Las tres pantallas. El Resumen sale cuando la fase de la sesión es TERMINADO. */
+/** Las pantallas. La Zona RA va antes del Entrenamiento si se ha elegido; el Resumen sale cuando la fase es TERMINADO. */
 @Composable
 fun App() = TemaSinTocar {
     Surface(Modifier.fillMaxSize(), color = Colores.fondo) {
-        var rutina by remember { mutableStateOf<Rutina?>(null) }
-        val elegida = rutina
-        if (elegida == null) PantallaInicio(Modifier.safeDrawingPadding()) { rutina = it }
-        else Sesion(elegida, Modifier.safeDrawingPadding()) { rutina = null }
+        // Lo elegido en Inicio: la rutina y si se pasa antes por la Zona RA.
+        var destino by remember { mutableStateOf<Destino?>(null) }
+        val elegido = destino
+        if (elegido == null) PantallaInicio(Modifier.safeDrawingPadding(),
+            alZonaRA = { destino = Destino(it, conZonaRA = true) }) { destino = Destino(it, conZonaRA = false) }
+        else Sesion(elegido.rutina, elegido.conZonaRA, Modifier.safeDrawingPadding()) { destino = null }
     }
 }
 
 /** Una sesión de entrenamiento: crea el control, la escucha continua y el reloj, y los conecta. */
 @Composable
-private fun Sesion(rutina: Rutina, modifier: Modifier, alVolver: () -> Unit) {
+private fun Sesion(rutina: Rutina, conZonaRA: Boolean, modifier: Modifier, alVolver: () -> Unit) {
     val inicio = remember { TimeSource.Monotonic.markNow() }
     val reloj: () -> Long = remember { { inicio.elapsedNow().inWholeMilliseconds } }
     val microfono = rememberPermiso(Recurso.MICROFONO)
@@ -41,7 +45,9 @@ private fun Sesion(rutina: Rutina, modifier: Modifier, alVolver: () -> Unit) {
         activa = microfono.estado == EstadoPermiso.CONCEDIDO,
         reloj = reloj,
     ) { accion -> ref.valor?.ordenar(Orden(accion, Origen.VOZ)) }
-    val c = remember(rutina) { ControlEntrenamiento(rutina, reloj, anunciar = { escucha.decir(it) }).also { ref.valor = it } }
+    val c = remember(rutina) { ControlEntrenamiento(rutina, reloj, anunciar = { escucha.decir(it) }, enZonaRA = conZonaRA).also { ref.valor = it } }
+    // Entre la Zona RA y el Entrenamiento hay una transición: una sola cámara abierta a la vez.
+    var transicion by remember { mutableStateOf(false) }
 
     // Reloj de la pantalla: avance automático a los 3 s y tiempo en marcha.
     var ahora by remember { mutableLongStateOf(0L) }
@@ -49,6 +55,8 @@ private fun Sesion(rutina: Rutina, modifier: Modifier, alVolver: () -> Unit) {
         while (true) { c.tic(); ahora = reloj(); delay(100) }
     }
 
-    if (c.fase == Fase.TERMINADO) PantallaResumen(c, escucha, ahora, modifier, alVolver)
+    if (c.zonaRA && !transicion) PantallaZonaRA(c, escucha, ahora, { transicion = true }, modifier)
+    else if (c.zonaRA) PantallaTransicionCamara({ transicion = false; c.salirZonaRA() }, modifier)
+    else if (c.fase == Fase.TERMINADO) PantallaResumen(c, escucha, ahora, modifier, alVolver)
     else PantallaEntrenamiento(c, escucha, ahora, reloj, modifier)
 }

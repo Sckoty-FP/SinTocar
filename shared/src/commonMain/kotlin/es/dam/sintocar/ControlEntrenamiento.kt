@@ -1,6 +1,7 @@
 package es.dam.sintocar
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,11 +32,13 @@ data class OrdenRegistrada(val orden: Orden, val ms: Long, val resultado: Result
  *
  * @param reloj hora actual en ms. En la app, el reloj del sistema; en los tests, uno que avanza a mano.
  * @param anunciar se llama con cada frase que hay que decir en voz alta (y enseñar en pantalla).
+ * @param enZonaRA true si la sesión empieza en la Zona RA (antes de entrenar). Se sale con [salirZonaRA].
  */
 class ControlEntrenamiento(
     val rutina: Rutina,
     private val reloj: () -> Long,
     private val anunciar: (String) -> Unit = {},
+    enZonaRA: Boolean = false,
 ) {
     var fase by mutableStateOf(Fase.PREPARADO); private set
     var indice by mutableStateOf(0); private set
@@ -43,6 +46,14 @@ class ControlEntrenamiento(
     var encuadreOk by mutableStateOf(false); private set
     var ayudaVisible by mutableStateOf(false); private set
     var favorito by mutableStateOf(false); private set
+    /**
+     * true mientras se está en la Zona RA (antes de entrenar). En ese estado solo valen COLOCAR, QUITAR y AYUDA;
+     * fuera de ella, COLOCAR y QUITAR no hacen nada (NO_DISPONIBLE).
+     */
+    var zonaRA by mutableStateOf(enZonaRA); private set
+    /** Contadores que la escena de RA vigila: cada orden aplicada de colocar o quitar los sube en uno. */
+    var peticionesColocar by mutableIntStateOf(0); private set
+    var peticionesQuitar by mutableIntStateOf(0); private set
     /** La última frase anunciada, para enseñarla en pantalla además de decirla. */
     var ultimoAnuncio by mutableStateOf<String?>(null); private set
 
@@ -91,7 +102,17 @@ class ControlEntrenamiento(
         return resultado
     }
 
-    private fun aplicar(accion: Accion, ahora: Long): Boolean = when (accion) {
+    fun salirZonaRA() { zonaRA = false }
+
+    private fun aplicar(accion: Accion, ahora: Long): Boolean = when {
+        accion == Accion.COLOCAR -> zonaRA.also { if (it) peticionesColocar++ }
+        accion == Accion.QUITAR -> zonaRA.also { if (it) peticionesQuitar++ }
+        // En la Zona RA aún no se entrena: solo la ayuda vale además de colocar y quitar.
+        zonaRA && accion != Accion.AYUDA -> false
+        else -> aplicarEntrenamiento(accion, ahora)
+    }
+
+    private fun aplicarEntrenamiento(accion: Accion, ahora: Long): Boolean = when (accion) {
         Accion.EMPEZAR -> when (fase) {
             Fase.PREPARADO, Fase.PAUSA -> {
                 val completa = repeticiones[indice] >= serieActual.objetivo
@@ -120,6 +141,7 @@ class ControlEntrenamiento(
             fase == Fase.TERMINADO && !favorito -> { favorito = true; decir(Frases.FAVORITO); true }
             else -> false
         }
+        Accion.COLOCAR, Accion.QUITAR -> false   // las trata aplicar() antes de llegar aquí
     }
 
     /** El contador de la cámara avisa de una repetición. Solo cuenta con datos fiables (requisito 4). */

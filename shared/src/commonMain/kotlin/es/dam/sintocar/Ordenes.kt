@@ -1,7 +1,7 @@
 package es.dam.sintocar
 
 /** Lo que el usuario puede pedir. Cada acción es una fila del mapa de órdenes. */
-enum class Accion { EMPEZAR, PAUSA, SIGUIENTE, TERMINAR, AYUDA, FAVORITO }
+enum class Accion { EMPEZAR, PAUSA, SIGUIENTE, TERMINAR, AYUDA, FAVORITO, COLOCAR, QUITAR }
 
 /** Por dónde llegó la orden. El Resumen lo enseña. */
 enum class Origen { VOZ, POSTURA, TOQUE, GESTO, CARA }
@@ -19,6 +19,9 @@ val MAPA_VOZ: Map<String, Accion> = mapOf(
     "siguiente" to Accion.SIGUIENTE,
     "terminar" to Accion.TERMINAR,
     "ayuda" to Accion.AYUDA,
+    // Zona RA (Tema 8): solo hacen algo mientras se está en esa pantalla.
+    "colocar" to Accion.COLOCAR, "coloca" to Accion.COLOCAR, "pon" to Accion.COLOCAR,
+    "quitar" to Accion.QUITAR, "quita" to Accion.QUITAR, "borrar" to Accion.QUITAR,
 )
 
 /**

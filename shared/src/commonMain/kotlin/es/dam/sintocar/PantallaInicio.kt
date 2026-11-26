@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,7 +28,7 @@ import androidx.compose.ui.unit.dp
  * Si se rechaza un permiso la app sigue funcionando con los botones (Tema 1, privacidad y permisos).
  */
 @Composable
-fun PantallaInicio(modifier: Modifier = Modifier, alElegir: (Rutina) -> Unit) {
+fun PantallaInicio(modifier: Modifier = Modifier, alZonaRA: (Rutina) -> Unit = {}, alElegir: (Rutina) -> Unit) {
     val camara = rememberPermiso(Recurso.CAMARA)
     val micro = rememberPermiso(Recurso.MICROFONO)
     Column(
@@ -43,6 +50,19 @@ fun PantallaInicio(modifier: Modifier = Modifier, alElegir: (Rutina) -> Unit) {
 
         Text("Elige tu rutina", fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = Colores.texto)
         Rutina.entries.forEach { r -> TarjetaRutina(r) { alElegir(r) } }
+
+        // Zona RA: antes de entrenar se coloca la esterilla. Es opcional: se puede ir directo a una rutina.
+        var rutinaRA by remember { mutableStateOf(Rutina.SUAVE) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Rutina después:", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
+            Rutina.entries.forEach { r ->
+                Text(r.nombre, fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold,
+                    color = if (r == rutinaRA) Color.Black else Colores.texto,
+                    modifier = Modifier.background(if (r == rutinaRA) Colores.primario else Colores.superficie, RoundedCornerShape(12.dp))
+                        .clickable { rutinaRA = r }.padding(horizontal = 16.dp, vertical = 10.dp))
+            }
+        }
+        BotonGrande("📐 Zona RA: coloca la esterilla", Modifier.fillMaxWidth(), Colores.correcto) { alZonaRA(rutinaRA) }
     }
 }
 

@@ -295,3 +295,72 @@ class GestoTest {
         assertEquals(Resultado.APLICADA, c.ordenar(postura(Accion.PAUSA)))
     }
 }
+
+private fun controlRA(reloj: Reloj = Reloj()) =
+    ControlEntrenamiento(Rutina.SUAVE, reloj = { reloj.ms }, enZonaRA = true)
+
+class ZonaRATest {
+    @Test fun colocarPorVozSeAplicaYSeAnotaConSuOrigen() {
+        val c = controlRA()
+        assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.COLOCAR)))
+        assertEquals(1, c.peticionesColocar)
+        assertEquals(Origen.VOZ, c.historial.last().orden.origen)
+    }
+
+    @Test fun quitarPorToqueSeAplicaYSeAnotaConSuOrigen() {
+        val c = controlRA()
+        assertEquals(Resultado.APLICADA, c.ordenar(toque(Accion.QUITAR)))
+        assertEquals(1, c.peticionesQuitar)
+        assertEquals(Origen.TOQUE, c.historial.last().orden.origen)
+    }
+
+    @Test fun colocarYQuitarEnMenosDeUnSegundoSeIgnoranVengaDeDondeVenga() {
+        val r = Reloj(); val c = controlRA(r)
+        c.ordenar(voz(Accion.COLOCAR))
+        r.avanzar(500)
+        assertEquals(Resultado.REPETIDA, c.ordenar(toque(Accion.COLOCAR)))
+        assertEquals(1, c.peticionesColocar)
+        c.ordenar(voz(Accion.QUITAR))
+        r.avanzar(999)
+        assertEquals(Resultado.REPETIDA, c.ordenar(toque(Accion.QUITAR)))
+        assertEquals(1, c.peticionesQuitar)
+        r.avanzar(1)
+        assertEquals(Resultado.APLICADA, c.ordenar(toque(Accion.QUITAR)))
+        assertEquals(2, c.peticionesQuitar)
+    }
+
+    @Test fun fueraDeLaZonaRANoHacenNada() {
+        val c = control()                                  // sesión normal, sin Zona RA
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(voz(Accion.COLOCAR)))
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(toque(Accion.QUITAR)))
+        assertEquals(0, c.peticionesColocar)
+        assertEquals(0, c.peticionesQuitar)
+        assertEquals(Origen.VOZ, c.historial.first().orden.origen)   // se anotan igual
+    }
+
+    @Test fun alSalirDeLaZonaRADejanDeValer() {
+        val r = Reloj(); val c = controlRA(r)
+        c.salirZonaRA()
+        r.avanzar(2000)
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(voz(Accion.COLOCAR)))
+    }
+
+    @Test fun enLaZonaRANoSeEntrenaAunque() {
+        val c = controlRA()
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(voz(Accion.EMPEZAR)))
+        assertEquals(Fase.PREPARADO, c.fase)
+        assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.AYUDA)))   // la ayuda sí vale
+    }
+
+    @Test fun lasPalabrasDeVoz() {
+        assertEquals(Accion.COLOCAR, interpretar("Colocar"))
+        assertEquals(Accion.COLOCAR, interpretar("coloca la esterilla"))
+        assertEquals(Accion.QUITAR, interpretar("quitar"))
+        assertEquals(Accion.QUITAR, interpretar("Quita"))
+    }
+
+    @Test fun laTransicionDiceLoQueSeLePide() {
+        assertEquals("Cambio a la cámara frontal para verte mientras entrenas. Deja el móvil en el suelo, donde está la esterilla.",
+            TEXTO_TRANSICION_CAMARA)
+    }
+}

@@ -21,12 +21,19 @@ expect val comoColocar: String
 @Composable
 expect fun compatibilidadRA(): String
 
+/** Dónde se lanza el rayo para colocar: el último toque, o el centro si la orden vino por voz o por botón. */
+fun puntoDeColocacion(ultimoToque: Pair<Float, Float>?, ancho: Int, alto: Int): Pair<Float, Float> =
+    ultimoToque ?: (ancho / 2f to alto / 2f)
+
 /**
  * Escena de RA a pantalla completa.
- * @param permitirColocar si es true, tocar el suelo coloca la esterilla.
+ * @param permitirColocar si es true, se puede colocar la esterilla.
  * @param quitar cada vez que este número cambia, se quita la esterilla.
- * @param colocar cada vez que este número cambia (y [permitirColocar]), se coloca la esterilla sin tocar:
- *   en el centro de la pantalla (móvil) o sobre el marcador (PC). Lo usa la orden de voz «colocar».
+ * @param colocar cada vez que este número cambia (y [permitirColocar]) se coloca la esterilla. Es la ÚNICA
+ *   forma de colocar: así toda orden pasa por ControlEntrenamiento. Se coloca en el último punto tocado,
+ *   o en el centro (móvil) o sobre el marcador (PC) si la orden vino por voz o por botón.
+ * @param alTocar la escena avisa de un toque sobre ella. Devuelve true si la orden se aplicó
+ *   (el control la puede rechazar: sin suelo, o repetida en menos de 1 s).
  */
 @Composable
-expect fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alCambiar: (EstadoRA) -> Unit)
+expect fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alTocar: () -> Boolean, alCambiar: (EstadoRA) -> Unit)

@@ -2,7 +2,9 @@ package es.dam.sintocar
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class LectorGestosTest {
     private fun gesto(nombre: String, confianza: Float = 0.95f) = Gesto(nombre, confianza)
@@ -16,6 +18,21 @@ class LectorGestosTest {
 
     @Test fun pulgarArribaDaSiguiente() =
         assertEquals(listOf(Orden(Accion.SIGUIENTE, Origen.GESTO)), LectorGestos().mandar(5, "Thumb_Up"))
+
+    @Test fun siSeIgnoraNoSalePausaYHayQueSoltarParaRepetir() {
+        val l = LectorGestos()
+        val ignorado = List(10) { l.leer(gesto("Open_Palm"), ignorar = true) }.filterNotNull()
+        assertEquals(emptyList(), ignorado)
+        assertEquals("None", l.viendo)
+        assertEquals(0f, l.progreso)
+        assertEquals(1, l.mandar(5, "Open_Palm").size)   // al dejar de ignorar, cuenta desde cero
+    }
+
+    @Test fun conLosBrazosEnCruzSeIgnoranLosGestos() {
+        assertTrue(ignorarGestos(enCruz = true, progresoCruz = 0f))
+        assertTrue(ignorarGestos(enCruz = false, progresoCruz = 0.3f))
+        assertFalse(ignorarGestos(enCruz = false, progresoCruz = 0f))
+    }
 
     @Test fun cuatroImagenesNoBastan() = assertEquals(emptyList(), LectorGestos().mandar(4, "Open_Palm"))
 

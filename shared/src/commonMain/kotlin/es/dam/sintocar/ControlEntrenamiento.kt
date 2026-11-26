@@ -26,6 +26,9 @@ enum class Conteo { CONTANDO, SIN_EMPEZAR, EN_PAUSA, SIN_ENCUADRE, ANUNCIANDO, T
 
 data class OrdenRegistrada(val orden: Orden, val ms: Long, val resultado: Resultado)
 
+/** Margen extra por si el TTS no avisa de que ha terminado. */
+private const val MARGEN_VOZ_MS = 4000L
+
 /**
  * El cerebro de la app. TODAS las órdenes (voz, postura, toque) entran por [ordenar].
  * No sabe nada de cámaras, micrófonos ni pantallas: por eso se puede testear con un reloj falso.
@@ -54,6 +57,10 @@ class ControlEntrenamiento(
     /** Contadores que la escena de RA vigila: cada orden aplicada de colocar o quitar los sube en uno. */
     var peticionesColocar by mutableIntStateOf(0); private set
     var peticionesQuitar by mutableIntStateOf(0); private set
+    /** true si hay suelo (o marcador) en la escena de RA. Sin suelo no se puede colocar. */
+    var sueloEncontrado by mutableStateOf(false); private set
+    /** true si han pedido colocar y no había suelo: la InstruccionRA dice qué hacer. */
+    var sinSuelo by mutableStateOf(false); private set
     /** La última frase anunciada, para enseñarla en pantalla además de decirla. */
     var ultimoAnuncio by mutableStateOf<String?>(null); private set
 
@@ -62,6 +69,7 @@ class ControlEntrenamiento(
 
     private val ultimaVez = mutableMapOf<Accion, Long>()
     private var avanzarEn: Long? = null
+    private var esperandoFinDeVoz = false
     private var tiempoAcumulado = 0L
     private var enMarchaDesde: Long? = null
 
@@ -102,14 +110,29 @@ class ControlEntrenamiento(
         return resultado
     }
 
-    fun salirZonaRA() { zonaRA = false }
+    fun salirZonaRA() { zonaRA = false; ayudaVisible = false }
+
+    /** La escena de RA avisa de si ve el suelo. Cuando aparece, el aviso de «sin suelo» sobra. */
+    fun suelo(hay: Boolean) {
+        sueloEncontrado = hay
+        if (hay) sinSuelo = false
+    }
 
     private fun aplicar(accion: Accion, ahora: Long): Boolean = when {
-        accion == Accion.COLOCAR -> zonaRA.also { if (it) peticionesColocar++ }
+        accion == Accion.COLOCAR -> colocar()
         accion == Accion.QUITAR -> zonaRA.also { if (it) peticionesQuitar++ }
         // En la Zona RA aún no se entrena: solo la ayuda vale además de colocar y quitar.
         zonaRA && accion != Accion.AYUDA -> false
         else -> aplicarEntrenamiento(accion, ahora)
+    }
+
+    /** Solo se coloca con suelo: si no, no se anota como aplicada y se avisa. */
+    private fun colocar(): Boolean {
+        if (!zonaRA) return false
+        if (!sueloEncontrado) { sinSuelo = true; return false }
+        sinSuelo = false
+        peticionesColocar++
+        return true
     }
 
     private fun aplicarEntrenamiento(accion: Accion, ahora: Long): Boolean = when (accion) {
@@ -124,7 +147,7 @@ class ControlEntrenamiento(
         }
         Accion.PAUSA -> when (fase) {
             Fase.EN_MARCHA, Fase.OBJETIVO_CUMPLIDO -> {
-                pararReloj(ahora); avanzarEn = null; fase = Fase.PAUSA; decir(Frases.EN_PAUSA); true
+                pararReloj(ahora); avanzarEn = null; esperandoFinDeVoz = false; fase = Fase.PAUSA; decir(Frases.EN_PAUSA); true
             }
             else -> false
         }
@@ -150,9 +173,19 @@ class ControlEntrenamiento(
         repeticiones[indice]++
         if (repeticiones[indice] >= serieActual.objetivo) {
             fase = Fase.OBJETIVO_CUMPLIDO
-            avanzarEn = reloj() + 3000
+            // Los 3 s empiezan cuando la voz TERMINA el anuncio (la escucha está parada mientras habla).
+            // Si la voz no avisa, se avanza igual a los 3 s + 4 s de margen.
+            avanzarEn = reloj() + 3000 + MARGEN_VOZ_MS
+            esperandoFinDeVoz = true
             decir(Frases.objetivo(rutina.series.getOrNull(indice + 1)))
         }
+    }
+
+    /** La voz ha terminado de decir el anuncio de objetivo: desde ahora quedan 3 s para decir «pausa». */
+    fun anuncioTerminado() {
+        if (fase != Fase.OBJETIVO_CUMPLIDO || !esperandoFinDeVoz) return
+        esperandoFinDeVoz = false
+        avanzarEn = reloj() + 3000
     }
 
     fun actualizarEncuadre(ok: Boolean) { encuadreOk = ok }
@@ -171,7 +204,7 @@ class ControlEntrenamiento(
         rutina.series.indices.groupBy({ rutina.series[it].ejercicio }, { repeticiones[it] }).mapValues { it.value.sum() }
 
     private fun avanzar(ahora: Long) {
-        avanzarEn = null
+        avanzarEn = null; esperandoFinDeVoz = false
         if (indice + 1 >= rutina.series.size) { terminar(ahora); return }
         indice++
         if (fase == Fase.OBJETIVO_CUMPLIDO) fase = Fase.EN_MARCHA
@@ -179,7 +212,7 @@ class ControlEntrenamiento(
     }
 
     private fun terminar(ahora: Long) {
-        pararReloj(ahora); avanzarEn = null
+        pararReloj(ahora); avanzarEn = null; esperandoFinDeVoz = false
         fase = Fase.TERMINADO
         decir(Frases.TERMINADO)
     }

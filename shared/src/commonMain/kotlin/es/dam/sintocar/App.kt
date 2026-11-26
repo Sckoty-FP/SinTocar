@@ -45,7 +45,7 @@ private fun Sesion(rutina: Rutina, conZonaRA: Boolean, modifier: Modifier, alVol
         activa = microfono.estado == EstadoPermiso.CONCEDIDO,
         reloj = reloj,
     ) { accion -> ref.valor?.ordenar(Orden(accion, Origen.VOZ)) }
-    val c = remember(rutina) { ControlEntrenamiento(rutina, reloj, anunciar = { escucha.decir(it) }, enZonaRA = conZonaRA).also { ref.valor = it } }
+    val c = remember(rutina) { ControlEntrenamiento(rutina, reloj, anunciar = { escucha.decir(it) { ref.valor?.anuncioTerminado() } }, enZonaRA = conZonaRA).also { ref.valor = it } }
     // Entre la Zona RA y el Entrenamiento hay una transición: una sola cámara abierta a la vez.
     var transicion by remember { mutableStateOf(false) }
 
@@ -55,7 +55,7 @@ private fun Sesion(rutina: Rutina, conZonaRA: Boolean, modifier: Modifier, alVol
         while (true) { c.tic(); ahora = reloj(); delay(100) }
     }
 
-    if (c.zonaRA && !transicion) PantallaZonaRA(c, escucha, ahora, { transicion = true }, modifier)
+    if (c.zonaRA && !transicion) PantallaZonaRA(c, escucha, ahora, { transicion = true }, alVolver, modifier)
     else if (c.zonaRA) PantallaTransicionCamara({ transicion = false; c.salirZonaRA() }, modifier)
     else if (c.fase == Fase.TERMINADO) PantallaResumen(c, escucha, ahora, modifier, alVolver)
     else PantallaEntrenamiento(c, escucha, ahora, reloj, modifier)

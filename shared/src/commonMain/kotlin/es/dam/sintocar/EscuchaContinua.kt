@@ -34,10 +34,10 @@ class EscuchaContinua(
     val error get() = reconocedor.error
 
     /** La app habla: primero se corta la escucha, y se reanuda cuando termina de hablar. */
-    fun decir(texto: String) {
+    fun decir(texto: String, alTerminar: () -> Unit = {}) {
         reconocedor.parar(); esperando = false
         hablando = true
-        hablante.decir(texto) { hablando = false }
+        hablante.decir(texto) { hablando = false; alTerminar() }
     }
 
     /**

@@ -41,11 +41,14 @@ actual fun compatibilidadRA(): String {
 }
 
 @Composable
-actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alCambiar: (EstadoRA) -> Unit) {
+actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alTocar: () -> Boolean, alCambiar: (EstadoRA) -> Unit) {
     val motor = rememberEngine()
     val cargador = rememberModelLoader(motor)
     val modelo = rememberModelInstance(cargador, "models/esterilla.glb")   // null mientras carga
     val avisar by rememberUpdatedState(alCambiar)
+    val avisarToque by rememberUpdatedState(alTocar)
+    // Último punto tocado: solo vale hasta que la orden de colocar lo use.
+    val ultimoToque = remember { arrayOfNulls<Pair<Float, Float>>(1) }
 
     var ancla by remember { mutableStateOf<Anchor?>(null) }
     var suelo by remember { mutableStateOf(false) }
@@ -55,10 +58,13 @@ actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, c
     var tamano by remember { mutableStateOf(IntSize.Zero) }
 
     LaunchedEffect(quitar) { ancla?.detach(); ancla = null; distancia = null }
-    // «colocar» por voz o botón: rayo desde el centro de la pantalla. Si aún no hay suelo, no hace nada.
+    // Se coloca SOLO cuando el control acepta la orden (cambia [colocar]): rayo desde el último toque,
+    // o desde el centro de la pantalla si la orden vino por voz o por botón.
     LaunchedEffect(colocar) {
+        val toque = ultimoToque[0]; ultimoToque[0] = null
         if (colocar > 0 && permitirColocar && tamano != IntSize.Zero) {
-            val impacto = ultimoFrame[0]?.hitTest(tamano.width / 2f, tamano.height / 2f)?.firstOrNull { it.trackable is Plane }
+            val (x, y) = puntoDeColocacion(toque, tamano.width, tamano.height)
+            val impacto = ultimoFrame[0]?.hitTest(x, y)?.firstOrNull { it.trackable is Plane }
             impacto?.createAnchor()?.let { nueva -> ancla?.detach(); ancla = nueva }
         }
     }
@@ -95,9 +101,9 @@ actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, c
         onGestureListener = rememberOnGestureListener(
             onSingleTapConfirmed = { evento, _ ->
                 if (permitirColocar) {
-                    // Rayo desde el dedo: el primer plano que toca es donde se coloca.
-                    val impacto = ultimoFrame[0]?.hitTest(evento)?.firstOrNull { it.trackable is Plane }
-                    impacto?.createAnchor()?.let { nueva -> ancla?.detach(); ancla = nueva }
+                    // El toque es una orden más: va al control. Si la rechaza, el punto se olvida.
+                    ultimoToque[0] = evento.x to evento.y
+                    if (!avisarToque()) ultimoToque[0] = null
                 }
             },
         ),

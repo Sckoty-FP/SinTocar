@@ -37,6 +37,7 @@ fun PantallaZonaRA(
     escucha: EscuchaContinua,
     ahora: Long,
     alEmpezar: () -> Unit,
+    alVolver: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var estado by remember { mutableStateOf(EstadoRA()) }
@@ -59,13 +60,15 @@ fun PantallaZonaRA(
                 val fase = faseRA(estado)
                 val d = estado.distanciaM
                 if (fase == FaseRA.COLOCADO && d != null) InstruccionRA(fase, "${metrosConComa(d)} m · ${consejo(d)}")
-                else InstruccionRA(fase, textoInstruccion(fase, estado))
+                else InstruccionRA(fase, textoInstruccion(fase, estado, control.sinSuelo))
                 EscenaRA(
                     Modifier.fillMaxWidth().height(420.dp),
                     permitirColocar = true,
                     quitar = control.peticionesQuitar,
                     colocar = control.peticionesColocar,
-                ) { estado = it }
+                    // Tocar la escena es una orden más: pasa por el control, que decide si se coloca.
+                    alTocar = { control.ordenar(Orden(Accion.COLOCAR, Origen.TOQUE)) == Resultado.APLICADA },
+                ) { estado = it; control.suelo(it.sueloEncontrado) }
                 Text("Di «colocar» o «quitar», o usa los botones.", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     BotonGrande("Colocar en el centro", Modifier.weight(1f)) { control.ordenar(Orden(Accion.COLOCAR, Origen.TOQUE)) }
@@ -80,7 +83,10 @@ fun PantallaZonaRA(
 
         IndicadorVoz(escucha.indicador(ahora), escucha.ultimaFrase, escucha.ultimaAccion, escucha.error,
             escucha.hablando, "\"colocar\"")
+        BotonGrande("? Ayuda", Modifier.fillMaxWidth(), Colores.textoSuave) { control.ordenar(Orden(Accion.AYUDA, Origen.TOQUE)) }
+        if (control.ayudaVisible) AyudaOrdenes()
         BotonGrande("Empezar entrenamiento", Modifier.fillMaxWidth(), Colores.correcto, alEmpezar)
+        BotonGrande("Volver al inicio", Modifier.fillMaxWidth(), Colores.textoSuave, alVolver)
     }
 }
 

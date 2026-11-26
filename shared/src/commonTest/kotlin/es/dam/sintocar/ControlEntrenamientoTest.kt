@@ -120,14 +120,45 @@ class AvanceAutomaticoTest {
         assertEquals(8, c.repeticionesActuales)
     }
 
-    @Test fun pasaAlSiguienteALosTresSegundos() {
+    @Test fun pasaAlSiguienteALosTresSegundosDeTerminarDeHablar() {
         val r = Reloj(); val c = control(reloj = r)
         c.ordenar(toque(Accion.EMPEZAR)); completar(c)
+        r.avanzar(5000); c.tic()
+        assertEquals(0, c.indice)                        // aún está hablando: los 3 s no han empezado
+        c.anuncioTerminado()                             // la voz acaba de terminar la frase
         r.avanzar(2999); c.tic()
         assertEquals(0, c.indice)
         r.avanzar(1); c.tic()
         assertEquals(1, c.indice)
         assertEquals(Ejercicio.ZANCADAS, c.serieActual.ejercicio)
+        assertEquals(Fase.EN_MARCHA, c.fase)
+    }
+
+    @Test fun siElTTSNoAvisaAvanzaIgualALosSieteSegundos() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR)); completar(c)
+        r.avanzar(6999); c.tic()
+        assertEquals(0, c.indice)
+        r.avanzar(1); c.tic()
+        assertEquals(1, c.indice)
+    }
+
+    @Test fun pausaJustoDespuesDeTerminarDeHablarCancelaElAvance() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR)); completar(c)
+        r.avanzar(2000); c.anuncioTerminado()
+        r.avanzar(500); assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.PAUSA)))
+        r.avanzar(10_000); c.tic()
+        assertEquals(0, c.indice)
+        assertEquals(Fase.PAUSA, c.fase)
+    }
+
+    @Test fun elFinDeUnAnuncioQueNoEsElDelObjetivoNoHaceNada() {
+        val r = Reloj(); val c = control(reloj = r)
+        c.ordenar(toque(Accion.EMPEZAR))
+        c.anuncioTerminado()                             // acaba «Vamos...»: no hay nada que avanzar
+        r.avanzar(10_000); c.tic()
+        assertEquals(0, c.indice)
         assertEquals(Fase.EN_MARCHA, c.fase)
     }
 
@@ -146,7 +177,7 @@ class AvanceAutomaticoTest {
     @Test fun laUltimaSerieTermina() {
         val r = Reloj(); val c = control(reloj = r)
         c.ordenar(toque(Accion.EMPEZAR))
-        repeat(3) { completar(c); r.avanzar(3000); c.tic() }
+        repeat(3) { completar(c); c.anuncioTerminado(); r.avanzar(3000); c.tic() }
         assertEquals(Fase.TERMINADO, c.fase)
         assertEquals(mapOf(Ejercicio.SENTADILLAS to 16, Ejercicio.ZANCADAS to 8), c.totalPorEjercicio())
     }
@@ -243,7 +274,7 @@ class VozTest {
             val r = Reloj()
             val c = ControlEntrenamiento(rutina, { r.ms }, { anuncios += it }).also { it.actualizarEncuadre(true) }
             c.ordenar(toque(Accion.EMPEZAR))
-            repeat(rutina.series.size) { repeat(c.serieActual.objetivo) { c.repeticion() }; r.avanzar(3000); c.tic() }
+            repeat(rutina.series.size) { repeat(c.serieActual.objetivo) { c.repeticion() }; c.anuncioTerminado(); r.avanzar(3000); c.tic() }
         }
         val todas = anuncios + Frases.todas()
         assertTrue(anuncios.isNotEmpty())
@@ -296,8 +327,9 @@ class GestoTest {
     }
 }
 
-private fun controlRA(reloj: Reloj = Reloj()) =
-    ControlEntrenamiento(Rutina.SUAVE, reloj = { reloj.ms }, enZonaRA = true)
+/** Una sesión en la Zona RA. Por defecto ya hay suelo: sin suelo no se puede colocar. */
+private fun controlRA(reloj: Reloj = Reloj(), suelo: Boolean = true) =
+    ControlEntrenamiento(Rutina.SUAVE, reloj = { reloj.ms }, enZonaRA = true).also { it.suelo(suelo) }
 
 class ZonaRATest {
     @Test fun colocarPorVozSeAplicaYSeAnotaConSuOrigen() {
@@ -305,6 +337,32 @@ class ZonaRATest {
         assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.COLOCAR)))
         assertEquals(1, c.peticionesColocar)
         assertEquals(Origen.VOZ, c.historial.last().orden.origen)
+    }
+
+    @Test fun colocarSinSueloNoSeAplicaYAvisa() {
+        val r = Reloj(); val c = controlRA(r, suelo = false)
+        assertEquals(Resultado.NO_DISPONIBLE, c.ordenar(voz(Accion.COLOCAR)))
+        assertEquals(0, c.peticionesColocar)
+        assertTrue(c.sinSuelo)
+        assertEquals("No encuentro el suelo: apunta al suelo y repite la orden",
+            textoInstruccion(FaseRA.BUSCANDO, EstadoRA(), c.sinSuelo))
+        c.suelo(true)                                      // aparece el suelo: el aviso se va
+        assertFalse(c.sinSuelo)
+        r.avanzar(1000)
+        assertEquals(Resultado.APLICADA, c.ordenar(voz(Accion.COLOCAR)))
+        assertEquals(1, c.peticionesColocar)
+    }
+
+    @Test fun elToqueEnLaEscenaEsUnaOrdenDeColocarConOrigenToque() {
+        val c = controlRA()
+        assertEquals(Resultado.APLICADA, c.ordenar(toque(Accion.COLOCAR)))
+        assertEquals(Origen.TOQUE, c.historial.last().orden.origen)
+        assertEquals(1, c.peticionesColocar)
+    }
+
+    @Test fun elPuntoDeColocacionEsElUltimoToqueOElCentro() {
+        assertEquals(100f to 200f, puntoDeColocacion(100f to 200f, 400, 800))
+        assertEquals(200f to 400f, puntoDeColocacion(null, 400, 800))
     }
 
     @Test fun quitarPorToqueSeAplicaYSeAnotaConSuOrigen() {

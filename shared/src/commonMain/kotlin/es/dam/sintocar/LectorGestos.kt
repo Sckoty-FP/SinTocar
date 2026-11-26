@@ -16,13 +16,15 @@ class LectorGestos(imagenes: Int = 5) {
     val progreso: Float get() = if (accionDe(viendo) == null) 0f else estabilizador.progreso
 
     /** Devuelve la orden solo en la imagen en que el gesto queda confirmado. */
-    fun leer(g: Gesto): Orden? {
-        viendo = if (g.confianza > 0.6f) g.nombre else "None"
+    fun leer(g: Gesto, ignorar: Boolean = false): Orden? {
+        // Ignorar = como si no hubiera mano: así no se acumula progreso y hay que soltar para volver a empezar.
+        viendo = if (!ignorar && g.confianza > 0.6f) g.nombre else "None"
         val confirmado = estabilizador.confirmar(viendo)
         return if (confirmado) accionDe(viendo)?.let { Orden(it, Origen.GESTO) } else null
     }
 
     companion object {
+
         /** Columna «Gesto» del mapa de órdenes. */
         fun accionDe(gesto: String): Accion? = when (gesto) {
             "Open_Palm" -> Accion.PAUSA
@@ -31,3 +33,6 @@ class LectorGestos(imagenes: Int = 5) {
         }
     }
 }
+
+/** Con los brazos en cruz (o a medias de los 2 s) la mano no manda: los dos gestos se pisan. */
+fun ignorarGestos(enCruz: Boolean, progresoCruz: Float) = enCruz || progresoCruz > 0f

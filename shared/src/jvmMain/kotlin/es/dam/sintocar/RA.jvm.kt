@@ -48,9 +48,10 @@ actual fun compatibilidadRA(): String =
     "✅ Escritorio: RA con marcador impreso (OpenCV ArUco). Imprime marcador_7.png a 15 cm de lado."
 
 @Composable
-actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alCambiar: (EstadoRA) -> Unit) {
+actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, colocar: Int, alTocar: () -> Boolean, alCambiar: (EstadoRA) -> Unit) {
     var colocado by remember { mutableStateOf(false) }
     val avisar by rememberUpdatedState(alCambiar)
+    val avisarToque by rememberUpdatedState(alTocar)
     LaunchedEffect(quitar) { colocado = false }
     LaunchedEffect(colocar) { if (colocar > 0 && permitirColocar) colocado = true }   // «colocar» por voz o botón
 
@@ -67,8 +68,8 @@ actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, c
         Slider(value = distancia, onValueChange = { distancia = it }, valueRange = 1f..4f)
     }
 
-    // Hacer clic en la imagen = tocar para colocar.
-    val conClic = if (permitirColocar) modifier.clickable { colocado = true } else modifier
+    // Hacer clic en la imagen = tocar: es una orden más, y coloca el control (cambia [colocar]).
+    val conClic = if (permitirColocar) modifier.clickable { avisarToque() } else modifier
     CamaraWeb(
         conClic,
         espejo = false,

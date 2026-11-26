@@ -300,6 +300,7 @@ fun AyudaOrdenes() {
             "Siguiente ejercicio" to "«siguiente» · 👍 pulgar arriba · botón",
             "Terminar" to "«terminar» · botón (con confirmación)",
             "Ayuda" to "«ayuda» · botón",
+            "Colocar / quitar la esterilla (Zona RA)" to "«colocar», «quitar» · tocar la escena · botones",
             "Favorito (en el resumen)" to "😊 sonrisa 0,8 s · botón",
         ).forEach { (accion, como) ->
             Text("$accion: $como", fontSize = Tamanos.apoyo, color = Colores.texto)

@@ -231,7 +231,7 @@ private fun Panel(
 
         // Respaldo sin cámara (Tema 6): no sustituye a la cámara real en el vídeo.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Switch(checked = usarManiqui, onCheckedChange = alCambiarManiqui)
+            Switch(checked = usarManiqui, onCheckedChange = alCambiarManiqui, modifier = Modifier.botonAccesible())
             Text("Sin cámara: usar el maniquí", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
         }
         if (usarManiqui) {

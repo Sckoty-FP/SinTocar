@@ -60,7 +60,7 @@ actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, c
     var distancia by remember { mutableFloatStateOf(2.5f) }
     val d by rememberUpdatedState(distancia)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Switch(checked = sinCamara, onCheckedChange = { sinCamara = it })
+        Switch(checked = sinCamara, onCheckedChange = { sinCamara = it }, modifier = Modifier.botonAccesible())
         Text("Sin cámara: imagen de prueba con el marcador")
     }
     if (sinCamara) {

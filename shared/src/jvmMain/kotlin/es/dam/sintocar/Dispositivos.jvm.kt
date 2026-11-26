@@ -114,7 +114,7 @@ private fun Desplegable(texto: String, opciones: List<String>, alElegir: (Int) -
         OutlinedButton(onClick = { abierto = true }, modifier = Modifier.botonAccesible()) { Text(texto, fontSize = Tamanos.apoyo, maxLines = 1) }
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
             opciones.forEachIndexed { i, o ->
-                DropdownMenuItem(text = { Text(o) }, onClick = { abierto = false; alElegir(i) })
+                DropdownMenuItem(text = { Text(o) }, onClick = { abierto = false; alElegir(i) }, modifier = Modifier.botonAccesible())
             }
         }
     }

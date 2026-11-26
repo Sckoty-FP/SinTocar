@@ -65,7 +65,7 @@ fun FuenteCara(simularAlPrincipio: Boolean = false, alDetectar: (Cara) -> Unit) 
 @Composable
 private fun InterruptorSinCamara(activo: Boolean, alCambiar: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Switch(checked = activo, onCheckedChange = alCambiar)
+        Switch(checked = activo, onCheckedChange = alCambiar, modifier = Modifier.botonAccesible())
         Text("Sin cámara: simular")
     }
 }

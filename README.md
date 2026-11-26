@@ -48,7 +48,7 @@ Práctica de Desarrollo de Interfaces (2.º DAM).
 - Si la RA falla, el entrenamiento funciona igual, sin la esterilla.
 
 ### Accesibilidad
-Los estados se ven con color y con texto (nunca solo color). El indicador de voz, el contador y los avisos son regiones vivas, así que un lector de pantalla los anuncia al cambiar. Todos los botones miden 56 dp o más.
+Los estados se ven con color y con texto (nunca solo color). El indicador de voz, el contador y los avisos son regiones vivas, así que un lector de pantalla los anuncia al cambiar. Los botones, los interruptores y las opciones de los menús miden 56 dp o más. Los deslizadores (maniquí, simulador y distancia de prueba) usan el tamaño estándar de Material, de 48 dp.
 
 ### Elegir cámara y micrófono (ordenador)
 En **Dispositivos** (en Inicio y al final de Entrenamiento) eliges la cámara («Cámara 0, 1, 2…») y el micrófono. Si tienes una cámara virtual (OBS, por ejemplo), suele ser la 0: prueba otro número hasta que aparezcas tú. La elección se recuerda entre aperturas.
@@ -73,7 +73,7 @@ Requisitos: Android Studio o IntelliJ IDEA con el plugin de Kotlin Multiplatform
 ### Generar los ejecutables
 - **APK:** `./gradlew :androidApp:assembleDebug` → `androidApp/build/outputs/apk/debug/`.
 - **.exe de Windows:** `./gradlew :desktopApp:createDistributable -PjdkEmpaquetado=<ruta de un JDK 25 con jpackage>` → `desktopApp/build/compose/binaries/main/app/SinTocar/`. No saques `SinTocar.exe` de su carpeta (al lado van `app\` y `runtime\`). El JDK de empaquetado tiene que ser **de la misma versión** con la que compila Gradle: si es más antiguo, el .exe se cierra sin mostrar ningún error.
-- El .exe usa los modelos de `~/.vosk` y `~/.di-modelos`. En otro PC hay que compilar `desktopApp` una vez con Internet para que se descarguen.
+- Los modelos (voz, postura, mano y cara) van DENTRO del .exe: la tarea `copiarModelos` los copia desde `~/.vosk` y `~/.di-modelos` al empaquetar. Para generar el .exe hay que haber compilado `desktopApp` una vez con Internet; el PC donde se ejecuta no necesita Internet ni esas carpetas.
 
 ### Si algo falla en el ordenador
 `SinTocar.exe --diagnostico` no abre ninguna ventana: escribe `~/sintocar-diagnostico.txt` con los micrófonos que ve Java, los formatos que abre cada uno y si el modelo de Vosk carga. Si la carpeta `~/.vosk/vosk-model-small-es-0.42` está vacía, bórrala y vuelve a compilar `desktopApp`.
@@ -83,14 +83,18 @@ Requisitos: Android Studio o IntelliJ IDEA con el plugin de Kotlin Multiplatform
 ### Arquitectura
 
 ```
-Voz (Reconocedor)  ─┐
-Postura (cámara)   ─┼─► Orden(accion, origen) ─► ControlEntrenamiento ─► estado ─► pantallas
-Toque (botones)    ─┘                                   │
-                                                        └─► anunciar(frase) ─► Hablante (voz)
+Voz (Reconocedor)    ─┐
+Postura (cámara)     ─┤
+Gesto (mano)         ─┼─► Orden(accion, origen) ─► ControlEntrenamiento ─► estado ─► pantallas
+Cara (sonrisa)       ─┤                                   │
+Toque (botones, RA)  ─┘                                   └─► anunciar(frase) ─► Hablante (voz)
+
+Zona RA: EscenaRA ◄── peticionesColocar / peticionesQuitar (las sube ControlEntrenamiento)
 ```
 
 - **`ControlEntrenamiento`** (commonMain) es el único punto de entrada de las órdenes. Es Kotlin puro con el reloj inyectado, así que se prueba sin dispositivo: debounce de 1 s, avance a los 3 s, no contar sin encuadre ni en pausa, tiempo sin pausas e historial con el origen.
 - **`Ordenes.kt`** contiene el mapa de voz (`interpretar`, que compara palabras enteras para que «siguiente» no se confunda con «sigue») y **todas** las frases que dice la app (`Frases`). Un test comprueba que ninguna frase contiene una orden, para que la app no se obedezca a sí misma (requisito 5).
+- **`LectorGestos`**, **`DetectorSonrisa`** y la Zona RA (`PantallaZonaRA`, `EscenaRA`) también entran por `ordenar`: el gesto y la sonrisa como orden con su origen, y colocar o quitar la esterilla como órdenes que suben `peticionesColocar` y `peticionesQuitar`. Colocar solo se aplica si la escena ve el suelo. Con los brazos en cruz se ignora la mano.
 - **`EscuchaContinua`** convierte el reconocedor de una sola frase del Tema 5 en escucha continua, y la corta mientras la app habla.
 - **`ContadorEjercicio`** generaliza el contador del Tema 6: dos umbrales con histéresis por ejercicio, más la detección de movimiento incompleto («Baja más»).
 - **`expect`/`actual`**: cada plataforma da su cámara con postura, su reconocedor, su voz, sus permisos y el selector de dispositivos (que en Android no muestra nada).
@@ -99,6 +103,9 @@ Toque (botones)    ─┘                                   │
 | Pieza | Android (`androidMain`) | Ordenador (`jvmMain`) |
 |-------|-------------------------|-----------------------|
 | Postura | CameraX + ML Kit Pose | OpenCV + MediaPipe Pose (ONNX) |
+| Gesto (mano) | MediaPipe Gesture Recognizer (`gesture_recognizer.task`) | OpenCV + MediaPipe Palm y Handpose (ONNX), 1 de cada 3 imágenes |
+| Cara (sonrisa) | ML Kit Face Detection | OpenCV + Haar (cara y sonrisa) |
+| RA (Zona RA) | ARCore + SceneView, cámara trasera | OpenCV ArUco con marcador impreso, cámara elegida en Dispositivos |
 | Voz → texto | `SpeechRecognizer` | Vosk (sin conexión) |
 | Texto → voz | `TextToSpeech` | Voz del sistema (System.Speech en Windows) |
 | Permisos | Diálogo del sistema | Los gestiona el sistema operativo |

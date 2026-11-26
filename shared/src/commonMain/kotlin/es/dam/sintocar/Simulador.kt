@@ -41,12 +41,12 @@ fun SimuladorGestos(alDetectar: (Gesto) -> Unit) {
 }
 
 /**
- * Cámara de cara con interruptor «Sin cámara». Sin cámara, deslizadores para la sonrisa
+ * Cámara de cara con interruptor «Sin cámara» (si no hay permiso de cámara, empieza ya simulando). Sin cámara, deslizadores para la sonrisa
  * y los ojos (0 a 100 %), mandados 15 veces por segundo.
  */
 @Composable
-fun FuenteCara(alDetectar: (Cara) -> Unit) {
-    var sinCamara by remember { mutableStateOf(false) }
+fun FuenteCara(simularAlPrincipio: Boolean = false, alDetectar: (Cara) -> Unit) {
+    var sinCamara by remember { mutableStateOf(simularAlPrincipio) }
     InterruptorSinCamara(sinCamara) { sinCamara = it }
     if (sinCamara) {
         var sonrisa by remember { mutableFloatStateOf(0f) }

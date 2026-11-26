@@ -32,6 +32,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -162,8 +166,13 @@ private fun Panel(
             fontSize = Tamanos.apoyo, color = Colores.textoSuave)
 
         // Contador grande: se lee a 3 metros.
+        // Región viva: el lector de pantalla dice el número cada vez que cambia.
         Text("${c.repeticionesActuales} / ${c.serieActual.objetivo}",
-            fontSize = Tamanos.contador, fontWeight = FontWeight.Black, color = Colores.texto)
+            fontSize = Tamanos.contador, fontWeight = FontWeight.Black, color = Colores.texto,
+            modifier = Modifier.semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = descripcionContador(c.repeticionesActuales, c.serieActual.objetivo)
+            })
 
         // Por qué cuenta o no cuenta (requisito 4): una sola instrucción, la más importante.
         val (mensaje, color) = when (c.conteo) {
@@ -178,7 +187,8 @@ private fun Panel(
                 else -> "⬇ Baja" to Colores.correcto
             }
         }
-        Text(mensaje, fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = color)
+        Text(mensaje, fontSize = Tamanos.titulo, fontWeight = FontWeight.Bold, color = color,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
 
         // Ayuda siempre visible, según el momento (descubribilidad).
         Text(pistaCorta(c.fase), fontSize = Tamanos.apoyo, color = Colores.texto)
@@ -238,8 +248,8 @@ private fun Panel(
         onDismissRequest = { confirmarTerminar = false },
         title = { Text("¿Terminar el entrenamiento?", fontSize = Tamanos.apoyo) },
         text = { Text("Irás al resumen y no podrás seguir con esta rutina.", fontSize = Tamanos.apoyo) },
-        confirmButton = { TextButton(onClick = { confirmarTerminar = false; toque(Accion.TERMINAR) }) { Text("Sí, terminar", fontSize = Tamanos.apoyo) } },
-        dismissButton = { TextButton(onClick = { confirmarTerminar = false }) { Text("No, seguir", fontSize = Tamanos.apoyo) } },
+        confirmButton = { TextButton(onClick = { confirmarTerminar = false; toque(Accion.TERMINAR) }, modifier = Modifier.botonAccesible()) { Text("Sí, terminar", fontSize = Tamanos.apoyo) } },
+        dismissButton = { TextButton(onClick = { confirmarTerminar = false }, modifier = Modifier.botonAccesible()) { Text("No, seguir", fontSize = Tamanos.apoyo) } },
     )
 }
 
@@ -290,3 +300,6 @@ fun OrdenEscrita(escucha: EscuchaContinua, alOrden: (Accion) -> Unit) {
         BotonGrande("Enviar") { escucha.recibir(texto, alOrden); texto = "" }
     }
 }
+
+/** Lo que lee el lector de pantalla del contador: «3 de 10 repeticiones», en vez de «3 barra 10». */
+fun descripcionContador(hechas: Int, objetivo: Int) = "$hechas de $objetivo repeticiones"

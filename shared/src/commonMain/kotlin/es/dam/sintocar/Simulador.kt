@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -34,7 +35,7 @@ fun SimuladorGestos(alDetectar: (Gesto) -> Unit) {
     var elegido by remember { mutableStateOf("None") }
     Column {
         for (fila in GESTOS.chunked(2)) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (g in fila) FilterChip(selected = g == elegido, onClick = { elegido = g }, label = { Text(enCastellano(g)) })
+            for (g in fila) FilterChip(selected = g == elegido, onClick = { elegido = g }, modifier = Modifier.heightIn(min = BOTON_MINIMO), label = { Text(enCastellano(g)) })
         }
     }
     Repetir { alDetectar(Gesto(elegido, if (elegido == "None") 0f else 0.95f)) }

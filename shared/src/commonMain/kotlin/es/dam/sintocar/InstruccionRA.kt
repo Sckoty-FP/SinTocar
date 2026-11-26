@@ -12,15 +12,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /** Variantes del componente «Instrucción de RA» de Figma: una por fase de la experiencia. */
-enum class FaseRA(val icono: String, val fondo: Color) {
-    BUSCANDO("📱", Color(0xFFFFB300)),   // aún no hay suelo: hay que mover el dispositivo
-    LISTO("👆", Color(0xFFFF7A3D)),      // hay suelo: ya se puede colocar
-    COLOCADO("✅", Color(0xFF26A69A)),   // el objeto está en su sitio
-    PROBLEMA("⚠", Color(0xFFE53935)),   // poca luz, movimiento brusco…
+enum class FaseRA(val icono: String, val fondo: Color, val nombre: String) {
+    BUSCANDO("📱", Color(0xFFFFB300), "Buscando el suelo"),   // aún no hay suelo: hay que mover el dispositivo
+    LISTO("👆", Color(0xFFFF7A3D), "Listo para colocar"),     // hay suelo: ya se puede colocar
+    COLOCADO("✅", Color(0xFF26A69A), "Colocado"),            // el objeto está en su sitio
+    PROBLEMA("⚠", Color(0xFFE53935), "Problema"),            // poca luz, movimiento brusco…
 }
 
 /** En qué fase está la experiencia de RA. El aviso de un problema tiene prioridad sobre todo lo demás. */
@@ -38,11 +42,17 @@ fun faseRA(estado: EstadoRA): FaseRA = when {
 @Composable
 fun InstruccionRA(fase: FaseRA, texto: String) {
     Row(
-        Modifier.fillMaxWidth().background(fase.fondo, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().background(fase.fondo, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)
+            // Región viva: cada cambio de fase se anuncia. El estado va en el texto, no solo en el color.
+            .clearAndSetSemantics {
+                contentDescription = "${fase.nombre}. $texto"
+                liveRegion = LiveRegionMode.Polite
+            },
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(fase.icono, fontSize = 28.sp)
-        Text(texto, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(texto, color = Color.Black,   // negro: el blanco sobre ámbar o verde no llega a AA
+             fontSize = 18.sp, fontWeight = FontWeight.Bold)
     }
 }

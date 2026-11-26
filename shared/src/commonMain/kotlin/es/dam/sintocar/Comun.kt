@@ -52,12 +52,18 @@ fun TemaSinTocar(contenido: @Composable () -> Unit) = MaterialTheme(
     content = contenido,
 )
 
+/** Tamaño mínimo de cualquier botón (requisito de accesibilidad: 56 dp o más). */
+val BOTON_MINIMO = 56.dp
+
+/** Pone a cualquier botón o zona pulsable el tamaño mínimo de 56 dp, de alto y de ancho. */
+fun Modifier.botonAccesible(): Modifier = defaultMinSize(minWidth = BOTON_MINIMO, minHeight = BOTON_MINIMO)
+
 /** Botón grande, fácil de pulsar. Es la alternativa táctil de cada orden. */
 @Composable
 fun BotonGrande(texto: String, modifier: Modifier = Modifier, color: Color = Colores.primario, alPulsar: () -> Unit) =
     Button(
         onClick = alPulsar,
-        modifier = modifier.defaultMinSize(minHeight = 64.dp),
+        modifier = modifier.defaultMinSize(minHeight = 64.dp).botonAccesible(),
         colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.Black),
     ) { Text(texto, fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold, modifier = Modifier.padding(4.dp)) }
 

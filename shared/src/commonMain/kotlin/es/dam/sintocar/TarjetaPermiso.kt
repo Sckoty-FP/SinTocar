@@ -48,12 +48,12 @@ fun TarjetaPermiso(
         Text(titulo, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         if (estado != EstadoPermiso.CONCEDIDO) Text(motivo, fontSize = 16.sp)
         when (estado) {
-            EstadoPermiso.SIN_PEDIR -> Button(onClick = alPedir) { Text("Permitir $recurso") }
+            EstadoPermiso.SIN_PEDIR -> Button(onClick = alPedir, modifier = Modifier.botonAccesible()) { Text("Permitir $recurso") }
             EstadoPermiso.DENEGADO -> {
                 // Tras dos rechazos Android ya no vuelve a preguntar: queda la vía de Ajustes.
-                Button(onClick = alPedir) { Text("Volver a pedirlo") }
+                Button(onClick = alPedir, modifier = Modifier.botonAccesible()) { Text("Volver a pedirlo") }
                 Text("Si no aparece la pregunta, pulsa «Abrir Ajustes» y permítelo allí.", fontSize = 16.sp)
-                Button(onClick = alAbrirAjustes) { Text("Abrir Ajustes") }
+                Button(onClick = alAbrirAjustes, modifier = Modifier.botonAccesible()) { Text("Abrir Ajustes") }
             }
             EstadoPermiso.CONCEDIDO -> {}
         }

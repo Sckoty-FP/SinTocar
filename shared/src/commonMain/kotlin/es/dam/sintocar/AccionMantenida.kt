@@ -33,7 +33,7 @@ fun AccionMantenida(estado: EstadoAccion, texto: String, progreso: Float) {
         Modifier.fillMaxWidth().background(Color(0xFFF5F5F5), RoundedCornerShape(16.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(texto, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = estado.color)
+        Text(texto, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)   // negro: naranja y verde sobre fondo claro no llegan a AA
         Box(Modifier.fillMaxWidth().height(10.dp).background(Color(0xFFE0E0E0), RoundedCornerShape(5.dp))) {
             val lleno = if (estado == EstadoAccion.HECHA) 1f else progreso.coerceIn(0f, 1f)
             Box(Modifier.fillMaxWidth(lleno).height(10.dp).background(estado.color, RoundedCornerShape(5.dp)))

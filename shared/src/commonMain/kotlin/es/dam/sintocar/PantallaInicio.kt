@@ -3,6 +3,7 @@ package es.dam.sintocar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -56,10 +60,16 @@ fun PantallaInicio(modifier: Modifier = Modifier, alZonaRA: (Rutina) -> Unit = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Rutina después:", fontSize = Tamanos.apoyo, color = Colores.textoSuave)
             Rutina.entries.forEach { r ->
-                Text(r.nombre, fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold,
-                    color = if (r == rutinaRA) Color.Black else Colores.texto,
-                    modifier = Modifier.background(if (r == rutinaRA) Colores.primario else Colores.superficie, RoundedCornerShape(12.dp))
-                        .clickable { rutinaRA = r }.padding(horizontal = 16.dp, vertical = 10.dp))
+                Box(
+                    Modifier.background(if (r == rutinaRA) Colores.primario else Colores.superficie, RoundedCornerShape(12.dp))
+                        .clickable(role = Role.RadioButton) { rutinaRA = r }
+                        .semantics { selected = r == rutinaRA }
+                        .botonAccesible().padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(r.nombre, fontSize = Tamanos.apoyo, fontWeight = FontWeight.Bold,
+                        color = if (r == rutinaRA) Color.Black else Colores.texto)
+                }
             }
         }
         BotonGrande("📐 Zona RA: coloca la esterilla", Modifier.fillMaxWidth(), Colores.correcto) { alZonaRA(rutinaRA) }

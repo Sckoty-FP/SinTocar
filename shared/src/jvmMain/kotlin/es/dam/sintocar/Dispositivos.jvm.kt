@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.util.prefs.Preferences
 import javax.sound.sampled.AudioFormat
@@ -110,7 +111,7 @@ actual fun SelectorDispositivos() {
 private fun Desplegable(texto: String, opciones: List<String>, alElegir: (Int) -> Unit) {
     var abierto by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { abierto = true }) { Text(texto, fontSize = Tamanos.apoyo, maxLines = 1) }
+        OutlinedButton(onClick = { abierto = true }, modifier = Modifier.botonAccesible()) { Text(texto, fontSize = Tamanos.apoyo, maxLines = 1) }
         DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
             opciones.forEachIndexed { i, o ->
                 DropdownMenuItem(text = { Text(o) }, onClick = { abierto = false; alElegir(i) })

@@ -20,6 +20,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -38,12 +42,18 @@ fun IndicadorVoz(estado: EstadoIndicador, frase: String?, accion: Accion?, error
         EstadoIndicador.RECONOCIDO -> Colores.correcto to "✔ «${frase.orEmpty()}» → ${accion?.texto()}"
         EstadoIndicador.NO_ENTENDIDO -> Colores.aviso to "No te he entendido. Prueba: $pista"
     }
+    val descripcion = descripcionIndicador(estado, frase, accion, error, hablando, pista)
     val latido by rememberInfiniteTransition().animateFloat(
         initialValue = 1f, targetValue = 1.4f,
         animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
     )
     Column(
-        Modifier.background(Colores.superficie, RoundedCornerShape(16.dp)).padding(12.dp),
+        Modifier.background(Colores.superficie, RoundedCornerShape(16.dp)).padding(12.dp)
+            // Región viva: el lector de pantalla anuncia cada cambio. Solo «No te he entendido» interrumpe.
+            .clearAndSetSemantics {
+                contentDescription = descripcion
+                liveRegion = if (estado == EstadoIndicador.NO_ENTENDIDO) LiveRegionMode.Assertive else LiveRegionMode.Polite
+            },
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -57,4 +67,15 @@ fun IndicadorVoz(estado: EstadoIndicador, frase: String?, accion: Accion?, error
         }
         if (error != null) Text(error, color = Colores.errorTexto, fontSize = Tamanos.apoyo)
     }
+}
+
+/** Lo que lee el lector de pantalla: lo mismo que se ve, pero sin emojis ni flechas. */
+fun descripcionIndicador(estado: EstadoIndicador, frase: String?, accion: Accion?, error: String?, hablando: Boolean, pista: String): String {
+    val base = when (estado) {
+        EstadoIndicador.INACTIVO -> if (hablando) "Hablando" else "Micrófono en espera"
+        EstadoIndicador.ESCUCHANDO -> "Te escucho"
+        EstadoIndicador.RECONOCIDO -> "Orden reconocida: ${frase.orEmpty()}, ${accion?.texto().orEmpty()}"
+        EstadoIndicador.NO_ENTENDIDO -> "No te he entendido. Prueba: $pista"
+    }
+    return if (error != null) "$base. Error: $error" else base
 }

@@ -3,6 +3,7 @@ package es.dam.sintocar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,7 +79,9 @@ internal fun <T> CamaraWeb(
     }
 
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
-        imagen?.let { Image(it, contentDescription = "Cámara", contentScale = ContentScale.FillBounds) }
+        // fillMaxSize: sin él la imagen salía a su tamaño en píxeles (pequeña con webcams de 480p)
+        // y el esqueleto, que ocupa todo el recuadro, no coincidía con el cuerpo.
+        imagen?.let { Image(it, contentDescription = "Cámara", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds) }
         error?.let { Text(it, color = Color.White) }
     }
 }

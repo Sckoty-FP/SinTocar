@@ -72,6 +72,7 @@ actual fun EscenaRA(modifier: Modifier, permitirColocar: Boolean, quitar: Int, c
     val conClic = if (permitirColocar) modifier.clickable { avisarToque() } else modifier
     CamaraWeb(
         conClic,
+        numeroCamara = DispositivosEscritorio.camara,   // la elegida en «Dispositivos», como la postura
         espejo = false,
         crearAnalizador = { AnalizadorMarcador { colocado } },
         alResultado = { avisar(it) },

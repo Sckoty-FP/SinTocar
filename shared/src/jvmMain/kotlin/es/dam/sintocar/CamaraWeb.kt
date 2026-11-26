@@ -66,7 +66,7 @@ internal fun <T> CamaraWeb(
             val fotograma = Mat()
             // Lee una imagen: de la cámara o, sin cámara, la imagen de prueba.
             fun leer(): Boolean {
-                val generar = prueba ?: return camara!!.read(fotograma)
+                val generar = prueba ?: return camara?.read(fotograma) ?: false
                 generar().copyTo(fotograma)
                 return true
             }

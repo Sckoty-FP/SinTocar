@@ -11,3 +11,4 @@ captures/
 dist/
 CLAUDE.md
 .claude/
+androidApp/src/main/assets/gesture_recognizer.task*

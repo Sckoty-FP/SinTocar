@@ -34,6 +34,8 @@ kotlin {
             implementation(libs.camerax.lifecycle)
             implementation(libs.camerax.view)
             implementation(libs.mlkit.pose)
+            implementation(libs.mlkit.face)                 // sonrisa en el Resumen (Tema 7)
+            implementation(libs.mediapipe.tasks.vision)     // gestos de la mano (Tema 7)
         }
         jvmMain.dependencies {
             implementation(libs.opencv)

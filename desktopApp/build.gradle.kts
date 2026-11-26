@@ -38,6 +38,11 @@ val descargarModelos = tasks.register("descargarModelos") {
     val carpeta = File(System.getProperty("user.home"), ".di-modelos")
     val archivos = mapOf(
         "pose_estimation_mediapipe_2023mar.onnx" to "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/pose_estimation_mediapipe/pose_estimation_mediapipe_2023mar.onnx",
+        // Tema 7: mano (detector de palma + 21 puntos) y cara (clasificadores Haar de OpenCV).
+        "palm_detection_mediapipe_2023feb.onnx" to "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/palm_detection_mediapipe/palm_detection_mediapipe_2023feb.onnx",
+        "handpose_estimation_mediapipe_2023feb.onnx" to "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/handpose_estimation_mediapipe/handpose_estimation_mediapipe_2023feb.onnx",
+        "haarcascade_frontalface_default.xml" to "https://raw.githubusercontent.com/opencv/opencv/4.x/data/haarcascades/haarcascade_frontalface_default.xml",
+        "haarcascade_smile.xml" to "https://raw.githubusercontent.com/opencv/opencv/4.x/data/haarcascades/haarcascade_smile.xml",
     )
     doLast {
         carpeta.mkdirs()
@@ -80,7 +85,7 @@ tasks.named("compileKotlin") { dependsOn(descargarModelos, descargarModeloVoz) }
 val copiarModelos = tasks.register<Sync>("copiarModelos") {
     dependsOn(descargarModelos, descargarModeloVoz)
     val casa = System.getProperty("user.home")
-    from("$casa/.di-modelos") { include("*.onnx") }
+    from("$casa/.di-modelos") { include("*.onnx", "*.xml") }   // los .xml son los Haar de la cara
     from("$casa/.vosk/vosk-model-small-es-0.42") { into("vosk-model-small-es-0.42") }
     into(layout.buildDirectory.dir("recursos-app/common"))
 }

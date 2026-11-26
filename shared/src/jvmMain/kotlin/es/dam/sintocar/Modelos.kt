@@ -8,11 +8,18 @@ import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 import java.io.File
 
-/** Carpeta donde Gradle deja los modelos al compilar desktopApp (ver desktopApp/build.gradle.kts). */
-internal val CARPETA_MODELOS = File(System.getProperty("user.home"), ".di-modelos")
+/**
+ * Busca un modelo. El .exe los lleva dentro, en la carpeta de recursos de Compose
+ * (si no, en otro ordenador no estarían). Desde el IDE se usan los que Gradle descarga en la carpeta del usuario.
+ */
+internal fun buscarModelo(nombre: String, carpetaUsuario: String): File {
+    val dentroDelExe = System.getProperty("compose.application.resources.dir")?.let { File(it, nombre) }
+    if (dentroDelExe != null && dentroDelExe.exists()) return dentroDelExe
+    return File(File(System.getProperty("user.home"), carpetaUsuario), nombre)
+}
 
 internal fun modelo(nombre: String): String {
-    val f = File(CARPETA_MODELOS, nombre)
+    val f = buscarModelo(nombre, ".di-modelos")
     check(f.exists()) { "Falta el modelo ${f.path}: compila desktopApp con conexión a Internet" }
     return f.path
 }

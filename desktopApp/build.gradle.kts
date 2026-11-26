@@ -26,6 +26,9 @@ compose.desktop {
             // El .exe lleva su propio Java recortado. Vosk (JNA) y OpenCV necesitan módulos que el
             // recorte automático puede dejar fuera: se incluyen todos para no fallar en el PC de otro.
             includeAllModules = true
+            // Los modelos van DENTRO del .exe. Antes solo estaban en la carpeta del usuario del PC donde se
+            // compiló, y en otro ordenador la app decía «Falta el modelo».
+            appResourcesRootDir.set(layout.buildDirectory.dir("recursos-app"))
         }
     }
 }
@@ -72,3 +75,13 @@ val descargarModeloVoz = tasks.register("descargarModeloVoz") {
 }
 
 tasks.named("compileKotlin") { dependsOn(descargarModelos, descargarModeloVoz) }
+
+// Copia los modelos a build/recursos-app/common. Compose mete esa carpeta en el .exe (app/resources).
+val copiarModelos = tasks.register<Sync>("copiarModelos") {
+    dependsOn(descargarModelos, descargarModeloVoz)
+    val casa = System.getProperty("user.home")
+    from("$casa/.di-modelos") { include("*.onnx") }
+    from("$casa/.vosk/vosk-model-small-es-0.42") { into("vosk-model-small-es-0.42") }
+    into(layout.buildDirectory.dir("recursos-app/common"))
+}
+tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn(copiarModelos) }

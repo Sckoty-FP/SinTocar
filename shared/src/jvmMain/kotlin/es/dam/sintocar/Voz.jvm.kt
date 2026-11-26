@@ -16,8 +16,8 @@ import javax.sound.sampled.AudioSystem
 import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
 
-/** Dónde deja Gradle el modelo de español de Vosk (lo descarga la primera vez que compilas desktopApp). */
-private val CARPETA_MODELO = File(System.getProperty("user.home"), ".vosk/vosk-model-small-es-0.42")
+/** El modelo de español de Vosk: dentro del .exe o, desde el IDE, donde lo descarga Gradle (~/.vosk). */
+private val CARPETA_MODELO = buscarModelo("vosk-model-small-es-0.42", ".vosk")
 
 /** El modelo tarda un par de segundos en cargarse: se carga una sola vez. */
 private val modelo: Model by lazy {

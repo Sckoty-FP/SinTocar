@@ -35,8 +35,13 @@ fun diagnosticoAudio(): File {
     }
     informe.appendLine("\n[Vosk]")
     informe.appendLine(runCatching {
-        org.vosk.Recognizer(org.vosk.Model(File(System.getProperty("user.home"), ".vosk/vosk-model-small-es-0.42").path), 16000f)
-            .use { "modelo y reconocedor OK" }
+        val carpeta = buscarModelo("vosk-model-small-es-0.42", ".vosk")
+        org.vosk.Recognizer(org.vosk.Model(carpeta.path), 16000f)
+            .use { "modelo y reconocedor OK (${carpeta.path})" }
     }.getOrElse { it.stackTraceToString().lines().take(12).joinToString("\n") })
+    // Antes solo se miraba la voz, y por eso no se vio que el modelo de postura faltaba en otro PC.
+    informe.appendLine("\n[Postura]")
+    informe.appendLine(runCatching { "modelo OK (${modelo("pose_estimation_mediapipe_2023mar.onnx")})" }
+        .getOrElse { "ERROR: ${it.message}" })
     return File(System.getProperty("user.home"), "sintocar-diagnostico.txt").apply { writeText(informe.toString()) }
 }
